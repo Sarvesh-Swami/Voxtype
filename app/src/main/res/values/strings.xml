@@ -1,0 +1,3 @@
+<resources>
+    <string name="a11y_description">Lets Speaker type your transcribed speech into the text field you are currently focused on in any app. Speaker does not read or store screen content; it only looks up the focused input field when you finish dictating.</string>
+</resources>

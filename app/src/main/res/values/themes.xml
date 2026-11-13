@@ -1,0 +1,9 @@
+<resources>
+    <!-- No system action bar: Android 15+ draws apps edge-to-edge, which hid content behind it.
+         MainActivity pads its own layout for the status/navigation bars and keyboard instead. -->
+    <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">#3355FF</item>
+        <item name="android:colorPrimaryDark">#2238C4</item>
+        <item name="android:colorAccent">#3355FF</item>
+    </style>
+</resources>

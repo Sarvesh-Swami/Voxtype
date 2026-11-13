@@ -1,0 +1,11 @@
+.gradle/
+build/
+app/build/
+local.properties
+*.iml
+.idea/
+*.apk
+!dist/*.apk
+
+# Signing key: keep out of git, but BACK IT UP (needed to update the installed app)
+keystore/

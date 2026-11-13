@@ -1,0 +1,10 @@
+# Optional ngrok Traffic Policy: answer every request with 200 "ok" so no local server is needed.
+# Log bodies show up in the ngrok inspector at http://127.0.0.1:4040.
+# Use:  ngrok http 8787 --traffic-policy-file tools\ngrok-log-policy.yml
+# (Without this file ngrok answers 502 but the inspector still shows every log; the app handles both.)
+on_http_request:
+  - actions:
+      - type: custom-response
+        config:
+          status_code: 200
+          body: ok

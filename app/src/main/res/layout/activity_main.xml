@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <!-- App title (replaces the system action bar). -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#3355FF"
+        android:paddingStart="16dp"
+        android:paddingTop="12dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="12dp"
+        android:text="Speaker"
+        android:textColor="#FFFFFF"
+        android:textSize="22sp" />
+
+    <!-- Pinned above the scrolling area so it is always visible. -->
+    <Button
+        android:id="@+id/btnUpdate"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="16dp"
+        android:backgroundTint="#2E7D32"
+        android:text="⬆ Update app"
+        android:textColor="#FFFFFF" />
+
+<ScrollView
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"
+    android:fillViewport="true">
+
+    <!-- focusable root takes initial focus, so the page doesn't auto-scroll to the text box -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- ===== Try it ===== -->
+        <Button
+            android:id="@+id/btnTry"
+            android:layout_width="match_parent"
+            android:layout_height="72dp"
+            android:text="🎤  Tap to speak"
+            android:textSize="20sp" />
+
+        <EditText
+            android:id="@+id/txtResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="top"
+            android:hint="Your transcribed text appears here (works in split-screen too)"
+            android:minLines="3" />
+
+        <Button
+            android:id="@+id/btnCopy"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:text="Copy text" />
+
+        <!-- ===== Floating bubble ===== -->
+        <TextView
+            style="@android:style/TextAppearance.Material.Title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Floating bubble" />
+
+        <TextView
+            android:id="@+id/txtStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:lineSpacingExtra="4dp" />
+
+        <Button
+            android:id="@+id/btnMic"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="1. Allow microphone" />
+
+        <Button
+            android:id="@+id/btnOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="2. Allow display over other apps" />
+
+        <Button
+            android:id="@+id/btnA11y"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="3. Enable auto-typing (Accessibility)" />
+
+        <Button
+            android:id="@+id/btnBattery"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="4. Don't let the phone kill it (battery: Unrestricted)" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="If the Accessibility switch is greyed out (Android 13+ sideloaded apps): App info → ⋮ menu → Allow restricted settings, then try again."
+            android:textSize="12sp" />
+
+        <CheckBox
+            android:id="@+id/chkAutoInsert"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Auto-type into the focused field (otherwise only copy)" />
+
+        <CheckBox
+            android:id="@+id/chkStopOnBlur"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Stop dictating when I leave the text field" />
+
+        <Button
+            android:id="@+id/btnBubble"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Start floating bubble" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Bubble: tap = start/stop · drag = move · long-press = open settings. Also available as a notification button and a Quick Settings tile (edit your Quick Settings and add “Dictate”)."
+            android:textSize="12sp" />
+
+        <!-- ===== Speech to text ===== -->
+        <TextView
+            style="@android:style/TextAppearance.Material.Title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Speech-to-text engine" />
+
+        <Spinner
+            android:id="@+id/spnStt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <EditText
+            android:id="@+id/edtSttModel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Model"
+            android:inputType="text" />
+
+        <EditText
+            android:id="@+id/edtLanguage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Language code, e.g. en, hi (blank = auto-detect)"
+            android:inputType="text" />
+
+        <!-- ===== LLM polish ===== -->
+        <TextView
+            style="@android:style/TextAppearance.Material.Title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Polish with an LLM (optional)" />
+
+        <CheckBox
+            android:id="@+id/chkPolish"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Clean up punctuation and filler words" />
+
+        <Spinner
+            android:id="@+id/spnLlm"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <EditText
+            android:id="@+id/edtLlmModel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Model"
+            android:inputType="text" />
+
+        <EditText
+            android:id="@+id/edtPrompt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="top"
+            android:hint="Instructions for the LLM"
+            android:inputType="textMultiLine"
+            android:minLines="3"
+            android:textSize="13sp" />
+
+        <!-- ===== API keys ===== -->
+        <TextView
+            style="@android:style/TextAppearance.Material.Title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Your API keys" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Keys are stored only on this phone, in the app's private storage, and sent only to the provider they belong to."
+            android:textSize="12sp" />
+
+        <LinearLayout
+            android:id="@+id/keysContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <EditText
+            android:id="@+id/edtCustomUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Custom base URL, e.g. https://my-server/v1"
+            android:inputType="textUri" />
+
+        <!-- ===== Debug logs ===== -->
+        <TextView
+            style="@android:style/TextAppearance.Material.Title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="Debug logs" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Copy logs works anytime, with no setup. Optionally, logs are also sent live to the URL below (e.g. your ngrok URL; view them on the PC at http://127.0.0.1:4040). Blank = built-in URL, “off” = don't send."
+            android:textSize="12sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btnCopyLogs"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Copy logs" />
+
+            <Button
+                android:id="@+id/btnShareLogs"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Share logs" />
+        </LinearLayout>
+
+        <EditText
+            android:id="@+id/edtLogUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="https://xxxx.ngrok-free.app/log"
+            android:inputType="textUri" />
+
+        <Button
+            android:id="@+id/btnTestLog"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:text="Test log URL" />
+
+        <Button
+            android:id="@+id/btnSave"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="Save settings" />
+    </LinearLayout>
+</ScrollView>
+
+</LinearLayout>
