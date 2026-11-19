@@ -7,8 +7,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- In-app self-update from the PC (Android asks the user once to allow it). -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- No REQUEST_INSTALL_PACKAGES here: Google Play forbids self-updating. The dev flavor adds it
+         (src/dev/AndroidManifest.xml) for the sideload-only Update button. -->
 
     <!-- Lets the built-in Android recognizer be found on Android 11+ -->
     <queries>
@@ -20,6 +20,8 @@
     <application
         android:name=".SpeakerApp"
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
         android:icon="@mipmap/ic_launcher"
         android:label="Speaker"
         android:supportsRtl="true"
@@ -35,18 +37,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <receiver
-            android:name=".UpdateReceiver"
-            android:exported="false" />
-
-        <receiver
-            android:name=".PackageReplacedReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-            </intent-filter>
-        </receiver>
 
         <service
             android:name=".BubbleService"

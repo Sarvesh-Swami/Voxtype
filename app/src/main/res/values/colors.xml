@@ -1,3 +1,26 @@
 <resources>
-    <color name="launcher_bg">#3355FF</color>
+    <!-- Brand: vibrant violet -> blue gradient -->
+    <color name="brand_start">#FF8B5CF6</color>
+    <color name="brand_end">#FF3B82F6</color>
+    <color name="brand">#FF7C3AED</color>
+    <color name="brand_tonal">#1F7C3AED</color>
+    <color name="on_brand">#FFFFFFFF</color>
+
+    <!-- States -->
+    <color name="recording_start">#FFFF5C7A</color>
+    <color name="recording_end">#FFF43F5E</color>
+    <color name="working">#FFF59E0B</color>
+    <color name="success">#FF10B981</color>
+    <color name="success_tonal">#1F10B981</color>
+    <color name="warning">#FFF59E0B</color>
+    <color name="warning_tonal">#1FF59E0B</color>
+
+    <!-- Surfaces (light) -->
+    <color name="bg">#FFF4F5FB</color>
+    <color name="surface">#FFFFFFFF</color>
+    <color name="field">#FFF1F2F8</color>
+    <color name="outline">#FFE6E8F0</color>
+    <color name="text_primary">#FF111827</color>
+    <color name="text_secondary">#FF6B7280</color>
+    <color name="text_hint">#FF9CA3AF</color>
 </resources>

@@ -3,287 +3,499 @@
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@color/bg"
     android:orientation="vertical">
 
-    <!-- App title (replaces the system action bar). -->
-    <TextView
+    <ScrollView
+        android:id="@+id/scroll"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="#3355FF"
-        android:paddingStart="16dp"
-        android:paddingTop="12dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="12dp"
-        android:text="Speaker"
-        android:textColor="#FFFFFF"
-        android:textSize="22sp" />
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipToPadding="false"
+        android:fillViewport="true">
 
-    <!-- Pinned above the scrolling area so it is always visible. -->
-    <Button
-        android:id="@+id/btnUpdate"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="16dp"
-        android:backgroundTint="#2E7D32"
-        android:text="⬆ Update app"
-        android:textColor="#FFFFFF" />
-
-<ScrollView
-    android:layout_width="match_parent"
-    android:layout_height="0dp"
-    android:layout_weight="1"
-    android:fillViewport="true">
-
-    <!-- focusable root takes initial focus, so the page doesn't auto-scroll to the text box -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:focusable="true"
-        android:focusableInTouchMode="true"
-        android:orientation="vertical"
-        android:padding="16dp">
-
-        <!-- ===== Try it ===== -->
-        <Button
-            android:id="@+id/btnTry"
-            android:layout_width="match_parent"
-            android:layout_height="72dp"
-            android:text="🎤  Tap to speak"
-            android:textSize="20sp" />
-
-        <EditText
-            android:id="@+id/txtResult"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="top"
-            android:hint="Your transcribed text appears here (works in split-screen too)"
-            android:minLines="3" />
-
-        <Button
-            android:id="@+id/btnCopy"
-            style="?android:attr/borderlessButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="end"
-            android:text="Copy text" />
-
-        <!-- ===== Floating bubble ===== -->
-        <TextView
-            style="@android:style/TextAppearance.Material.Title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="Floating bubble" />
-
-        <TextView
-            android:id="@+id/txtStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:lineSpacingExtra="4dp" />
-
-        <Button
-            android:id="@+id/btnMic"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="1. Allow microphone" />
-
-        <Button
-            android:id="@+id/btnOverlay"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="2. Allow display over other apps" />
-
-        <Button
-            android:id="@+id/btnA11y"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="3. Enable auto-typing (Accessibility)" />
-
-        <Button
-            android:id="@+id/btnBattery"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="4. Don't let the phone kill it (battery: Unrestricted)" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="If the Accessibility switch is greyed out (Android 13+ sideloaded apps): App info → ⋮ menu → Allow restricted settings, then try again."
-            android:textSize="12sp" />
-
-        <CheckBox
-            android:id="@+id/chkAutoInsert"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Auto-type into the focused field (otherwise only copy)" />
-
-        <CheckBox
-            android:id="@+id/chkStopOnBlur"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Stop dictating when I leave the text field" />
-
-        <Button
-            android:id="@+id/btnBubble"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Start floating bubble" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Bubble: tap = start/stop · drag = move · long-press = open settings. Also available as a notification button and a Quick Settings tile (edit your Quick Settings and add “Dictate”)."
-            android:textSize="12sp" />
-
-        <!-- ===== Speech to text ===== -->
-        <TextView
-            style="@android:style/TextAppearance.Material.Title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="Speech-to-text engine" />
-
-        <Spinner
-            android:id="@+id/spnStt"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
-        <EditText
-            android:id="@+id/edtSttModel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Model"
-            android:inputType="text" />
-
-        <EditText
-            android:id="@+id/edtLanguage"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Language code, e.g. en, hi (blank = auto-detect)"
-            android:inputType="text" />
-
-        <!-- ===== LLM polish ===== -->
-        <TextView
-            style="@android:style/TextAppearance.Material.Title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="Polish with an LLM (optional)" />
-
-        <CheckBox
-            android:id="@+id/chkPolish"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Clean up punctuation and filler words" />
-
-        <Spinner
-            android:id="@+id/spnLlm"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" />
-
-        <EditText
-            android:id="@+id/edtLlmModel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Model"
-            android:inputType="text" />
-
-        <EditText
-            android:id="@+id/edtPrompt"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="top"
-            android:hint="Instructions for the LLM"
-            android:inputType="textMultiLine"
-            android:minLines="3"
-            android:textSize="13sp" />
-
-        <!-- ===== API keys ===== -->
-        <TextView
-            style="@android:style/TextAppearance.Material.Title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="Your API keys" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Keys are stored only on this phone, in the app's private storage, and sent only to the provider they belong to."
-            android:textSize="12sp" />
-
-        <LinearLayout
-            android:id="@+id/keysContainer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical" />
-
-        <EditText
-            android:id="@+id/edtCustomUrl"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Custom base URL, e.g. https://my-server/v1"
-            android:inputType="textUri" />
-
-        <!-- ===== Debug logs ===== -->
-        <TextView
-            style="@android:style/TextAppearance.Material.Title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:text="Debug logs" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Copy logs works anytime, with no setup. Optionally, logs are also sent live to the URL below (e.g. your ngrok URL; view them on the PC at http://127.0.0.1:4040). Blank = built-in URL, “off” = don't send."
-            android:textSize="12sp" />
-
+        <!-- Focusable root takes initial focus so the page doesn't jump to a text field. -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:focusable="true"
+            android:focusableInTouchMode="true"
+            android:orientation="vertical"
+            android:paddingBottom="28dp">
 
-            <Button
-                android:id="@+id/btnCopyLogs"
-                android:layout_width="0dp"
+            <!-- ===== Header ===== -->
+            <LinearLayout
+                android:id="@+id/header"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Copy logs" />
+                android:background="@drawable/bg_header"
+                android:orientation="vertical"
+                android:paddingStart="24dp"
+                android:paddingTop="20dp"
+                android:paddingEnd="20dp"
+                android:paddingBottom="64dp">
 
-            <Button
-                android:id="@+id/btnShareLogs"
-                android:layout_width="0dp"
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="Speaker"
+                        android:textColor="@color/on_brand"
+                        android:textSize="28sp" />
+
+                    <Button
+                        android:id="@+id/btnUpdate"
+                        android:layout_width="wrap_content"
+                        android:layout_height="38dp"
+                        android:background="@drawable/bg_pill"
+                        android:drawableStart="@drawable/ic_arrow_up"
+                        android:drawablePadding="6dp"
+                        android:drawableTint="@color/on_brand"
+                        android:fontFamily="sans-serif-medium"
+                        android:minWidth="0dp"
+                        android:paddingStart="14dp"
+                        android:paddingEnd="16dp"
+                        android:stateListAnimator="@null"
+                        android:text="Update"
+                        android:textAllCaps="false"
+                        android:textColor="@color/on_brand"
+                        android:textSize="14sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="Voice typing for every app"
+                    android:textColor="#D9FFFFFF"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:id="@+id/txtVersion"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:background="@drawable/bg_chip"
+                    android:paddingStart="10dp"
+                    android:paddingTop="4dp"
+                    android:paddingEnd="10dp"
+                    android:paddingBottom="4dp"
+                    android:text="v0.0.0"
+                    android:textColor="@color/on_brand"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <!-- ===== Dictate (overlaps the header) ===== -->
+            <LinearLayout
+                style="@style/Card"
+                android:layout_marginTop="-44dp"
+                android:elevation="6dp"
+                android:gravity="center_horizontal"
+                android:paddingTop="24dp">
+
+                <ImageButton
+                    android:id="@+id/btnTry"
+                    android:layout_width="88dp"
+                    android:layout_height="88dp"
+                    android:background="@drawable/bg_mic_idle"
+                    android:contentDescription="Start or stop dictation"
+                    android:elevation="4dp"
+                    android:padding="26dp"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_mic" />
+
+                <TextView
+                    android:id="@+id/txtTryStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="Tap to dictate"
+                    android:textColor="@color/text_primary"
+                    android:textSize="16sp" />
+
+                <TextView
+                    android:id="@+id/txtTryHint"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:gravity="center"
+                    android:text="Try it here, or use the floating bubble in any app"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp" />
+
+                <EditText
+                    android:id="@+id/txtResult"
+                    style="@style/Field"
+                    android:layout_marginTop="18dp"
+                    android:gravity="top|start"
+                    android:hint="Your words appear here as you speak"
+                    android:inputType="textMultiLine|textCapSentences"
+                    android:minLines="3" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:gravity="end"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btnClear"
+                        style="@style/ButtonTonal"
+                        android:layout_marginEnd="8dp"
+                        android:drawableStart="@drawable/ic_clear"
+                        android:text="Clear" />
+
+                    <Button
+                        android:id="@+id/btnCopy"
+                        style="@style/ButtonTonal"
+                        android:drawableStart="@drawable/ic_copy"
+                        android:text="Copy" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ===== Setup checklist (hidden when everything is done) ===== -->
+            <LinearLayout
+                android:id="@+id/cardSetup"
+                style="@style/Card">
+
+                <LinearLayout style="@style/CardHeader">
+
+                    <ImageView
+                        style="@style/CardIcon"
+                        android:src="@drawable/ic_shield" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:text="Finish setup" />
+
+                    <TextView
+                        android:id="@+id/txtSetupProgress"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="0 of 4"
+                        android:textColor="@color/brand"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/setupRows"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical" />
+            </LinearLayout>
+
+            <!-- ===== Floating bubble ===== -->
+            <LinearLayout style="@style/Card">
+
+                <LinearLayout style="@style/CardHeader">
+
+                    <ImageView
+                        style="@style/CardIcon"
+                        android:src="@drawable/ic_bubble" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:text="Floating bubble" />
+
+                    <TextView
+                        android:id="@+id/txtBubbleState"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="Off"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <TextView
+                    style="@style/Body"
+                    android:layout_marginTop="10dp"
+                    android:text="A mic that floats over every app. Tap to start, tap again to stop. Drag to move, long-press to open Speaker. Also in your notification and Quick Settings (add the “Dictate” tile)." />
+
+                <Button
+                    android:id="@+id/btnBubble"
+                    style="@style/ButtonPrimary"
+                    android:layout_marginTop="16dp"
+                    android:drawableStart="@drawable/ic_bubble"
+                    android:paddingStart="20dp"
+                    android:paddingEnd="20dp"
+                    android:text="Start floating bubble" />
+
+                <Switch
+                    android:id="@+id/swAutoType"
+                    style="@style/SwitchRow"
+                    android:layout_marginTop="12dp"
+                    android:text="Type into the focused text field" />
+
+                <Switch
+                    android:id="@+id/swStopOnBlur"
+                    style="@style/SwitchRow"
+                    android:text="Stop when I leave the text field" />
+
+                <Switch
+                    android:id="@+id/swIsland"
+                    style="@style/SwitchRow"
+                    android:text="Show in the island / media controls (play = dictate, pause = stop)" />
+
+                <Switch
+                    android:id="@+id/swShowBubble"
+                    style="@style/SwitchRow"
+                    android:text="Show the floating bubble" />
+            </LinearLayout>
+
+            <!-- ===== Speech engine ===== -->
+            <LinearLayout style="@style/Card">
+
+                <LinearLayout style="@style/CardHeader">
+
+                    <ImageView
+                        style="@style/CardIcon"
+                        android:src="@drawable/ic_wave" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:text="Speech engine" />
+                </LinearLayout>
+
+                <TextView
+                    style="@style/Label"
+                    android:text="ENGINE" />
+
+                <Spinner
+                    android:id="@+id/spnStt"
+                    style="@style/SpinnerField" />
+
+                <LinearLayout
+                    android:id="@+id/rowSttModel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/Label"
+                        android:text="MODEL" />
+
+                    <EditText
+                        android:id="@+id/edtSttModel"
+                        style="@style/Field"
+                        android:hint="Model name"
+                        android:inputType="text" />
+                </LinearLayout>
+
+                <TextView
+                    style="@style/Label"
+                    android:text="LANGUAGE" />
+
+                <EditText
+                    android:id="@+id/edtLanguage"
+                    style="@style/Field"
+                    android:hint="Auto-detect (or e.g. en, hi, en-IN)"
+                    android:inputType="text" />
+            </LinearLayout>
+
+            <!-- ===== AI polish ===== -->
+            <LinearLayout style="@style/Card">
+
+                <LinearLayout style="@style/CardHeader">
+
+                    <ImageView
+                        style="@style/CardIcon"
+                        android:src="@drawable/ic_sparkle" />
+
+                    <Switch
+                        android:id="@+id/swPolish"
+                        style="@style/SwitchRow"
+                        android:layout_width="0dp"
+                        android:layout_marginTop="0dp"
+                        android:layout_weight="1"
+                        android:fontFamily="sans-serif-medium"
+                        android:text="AI rewrite"
+                        android:textSize="17sp" />
+                </LinearLayout>
+
+                <TextView
+                    style="@style/Body"
+                    android:layout_marginTop="6dp"
+                    android:text="Every sentence you speak goes to the AI with your session prompt, and the rewritten text replaces your words in the text field. Works with every speech engine." />
+
+                <Button
+                    android:id="@+id/btnEditPrompt"
+                    style="@style/ButtonTonal"
+                    android:layout_width="match_parent"
+                    android:layout_marginTop="12dp"
+                    android:text="Edit session prompt" />
+
+                <LinearLayout
+                    android:id="@+id/polishOptions"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/Label"
+                        android:text="PROVIDER" />
+
+                    <Spinner
+                        android:id="@+id/spnLlm"
+                        style="@style/SpinnerField" />
+
+                    <TextView
+                        style="@style/Label"
+                        android:text="MODEL" />
+
+                    <EditText
+                        android:id="@+id/edtLlmModel"
+                        style="@style/Field"
+                        android:hint="Model name"
+                        android:inputType="text" />
+
+                    <TextView
+                        style="@style/Label"
+                        android:text="SESSION PROMPT" />
+
+                    <EditText
+                        android:id="@+id/edtPrompt"
+                        style="@style/Field"
+                        android:gravity="top|start"
+                        android:inputType="textMultiLine"
+                        android:minLines="3"
+                        android:textSize="13sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- ===== API keys ===== -->
+            <LinearLayout style="@style/Card">
+
+                <LinearLayout style="@style/CardHeader">
+
+                    <ImageView
+                        style="@style/CardIcon"
+                        android:src="@drawable/ic_key" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:text="API keys" />
+                </LinearLayout>
+
+                <TextView
+                    style="@style/Body"
+                    android:layout_marginTop="10dp"
+                    android:text="Stored only on this phone and sent only to the provider each key belongs to." />
+
+                <LinearLayout
+                    android:id="@+id/keysContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+                <TextView
+                    style="@style/Label"
+                    android:text="CUSTOM PROVIDER URL" />
+
+                <EditText
+                    android:id="@+id/edtCustomUrl"
+                    style="@style/Field"
+                    android:hint="https://my-server/v1"
+                    android:inputType="textUri" />
+            </LinearLayout>
+
+            <!-- ===== Debug ===== -->
+            <LinearLayout style="@style/Card">
+
+                <LinearLayout style="@style/CardHeader">
+
+                    <ImageView
+                        style="@style/CardIcon"
+                        android:src="@drawable/ic_code" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:text="Logs &amp; debugging" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/txtLogsBody"
+                    style="@style/Body"
+                    android:layout_marginTop="10dp"
+                    android:text="Logs stream live to the URL below (your PC via ngrok). Blank = built-in URL, “off” = don't send." />
+
+                <TextView
+                    android:id="@+id/lblLogUrl"
+                    style="@style/Label"
+                    android:text="LOG URL" />
+
+                <EditText
+                    android:id="@+id/edtLogUrl"
+                    style="@style/Field"
+                    android:hint="https://xxxx.ngrok-free.app/log"
+                    android:inputType="textUri" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal">
+
+                    <Button
+                        android:id="@+id/btnTestLog"
+                        style="@style/ButtonTonal"
+                        android:layout_width="0dp"
+                        android:layout_marginEnd="8dp"
+                        android:layout_weight="1"
+                        android:text="Test" />
+
+                    <Button
+                        android:id="@+id/btnCopyLogs"
+                        style="@style/ButtonTonal"
+                        android:layout_width="0dp"
+                        android:layout_marginEnd="8dp"
+                        android:layout_weight="1"
+                        android:drawableStart="@drawable/ic_copy"
+                        android:text="Copy" />
+
+                    <Button
+                        android:id="@+id/btnShareLogs"
+                        style="@style/ButtonTonal"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:drawableStart="@drawable/ic_share"
+                        android:text="Share" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/txtFooter"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Share logs" />
+                android:layout_marginTop="20dp"
+                android:gravity="center"
+                android:text="Speaker"
+                android:textColor="@color/text_hint"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/btnPrivacy"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_gravity="center_horizontal"
+                android:gravity="center"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:background="?android:attr/selectableItemBackground"
+                android:text="Privacy &amp; permissions"
+                android:textColor="@color/brand"
+                android:textSize="13sp" />
         </LinearLayout>
-
-        <EditText
-            android:id="@+id/edtLogUrl"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="https://xxxx.ngrok-free.app/log"
-            android:inputType="textUri" />
-
-        <Button
-            android:id="@+id/btnTestLog"
-            style="?android:attr/borderlessButtonStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="end"
-            android:text="Test log URL" />
-
-        <Button
-            android:id="@+id/btnSave"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="Save settings" />
-    </LinearLayout>
-</ScrollView>
-
+    </ScrollView>
 </LinearLayout>

@@ -120,6 +120,8 @@ class TypeAccessibilityService : AccessibilityService() {
         val toDelete = previous.length - common
         val toAdd = text.substring(common)
         val terminalLike = info == null || info.inputType == InputType.TYPE_NULL
+        // Note: AccessibilityInputConnection methods return void (unlike a keyboard's InputConnection),
+        // so a dead connection can't be detected here; currentInputStarted above is the best signal.
         if (toDelete > 0) {
             if (terminalLike) {
                 // Terminals (Termux) expect real key presses for backspace.
@@ -132,7 +134,7 @@ class TypeAccessibilityService : AccessibilityService() {
             }
         }
         if (toAdd.isNotEmpty()) ic.commitText(toAdd, 1, null)
-        Log.d(TAG, "IC typed into ${info?.packageName}: -$toDelete +${toAdd.length} \"${toAdd.take(80)}\" (terminal=$terminalLike)")
+        Log.d(TAG, "IC typed into ${info?.packageName}: -$toDelete +${toAdd.length} ${spoken(toAdd.take(80))} (terminal=$terminalLike)")
         return true
     }
 
@@ -193,7 +195,7 @@ object LiveTyper {
     fun update(ctx: Context, text: String, isFinal: Boolean, sessionText: String): Result {
         val svc = TypeAccessibilityService.instance
         val autoType = Prefs(ctx).autoInsert
-        if (isFinal) Log.i(TAG, "Final phrase: ${text.length} chars \"${text.take(160)}\" autoType=$autoType a11y=${svc != null}")
+        if (isFinal) Log.i(TAG, "Final phrase: ${text.length} chars ${spoken(text)} autoType=$autoType a11y=${svc != null}")
 
         if (autoType && svc != null) {
             val ok = runCatching { svc.typeViaInputConnection(text, typed) }.getOrElse {

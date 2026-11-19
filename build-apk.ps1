@@ -8,13 +8,13 @@ if (-not $env:JAVA_HOME) { throw "Portable JDK not found in $env:USERPROFILE\dev
 $env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
 Set-Location $PSScriptRoot
 
-.\gradlew.bat assembleDebug --console=plain
+.\gradlew.bat assembleDevDebug --console=plain
 if ($LASTEXITCODE -ne 0) { throw "Build failed" }
 
 $version = (Select-String -Path app\build.gradle.kts -Pattern 'versionName = "(.+)"').Matches[0].Groups[1].Value
 New-Item -ItemType Directory -Force dist | Out-Null
 $apk = "dist\Speaker-$version-debug.apk"
-Copy-Item app\build\outputs\apk\debug\app-debug.apk $apk -Force
+Copy-Item app\build\outputs\apk\dev\debug\app-dev-debug.apk $apk -Force
 Write-Host "APK: $((Resolve-Path $apk).Path)"
 
 if ($Install) {

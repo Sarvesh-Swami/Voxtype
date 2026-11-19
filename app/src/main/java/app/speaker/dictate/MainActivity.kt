@@ -1,44 +1,60 @@
 package app.speaker.dictate
 
 import android.Manifest
+import android.animation.ObjectAnimator
+import android.animation.PropertyValuesHolder
+import android.animation.ValueAnimator
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.text.InputType
+import android.view.LayoutInflater
 import android.view.View
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
-import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.Spinner
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 
-/** Settings + an in-app "try it" dictation button. */
+/** Main screen: dictate in-app, set up permissions, run the floating bubble, configure engines and keys. */
 class MainActivity : Activity(), DictationEngine.Listener {
 
     private lateinit var prefs: Prefs
     private lateinit var engine: DictationEngine
 
-    private lateinit var btnTry: Button
+    private lateinit var btnTry: ImageButton
+    private lateinit var txtTryStatus: TextView
+    private lateinit var txtTryHint: TextView
     private lateinit var txtResult: EditText
-    private lateinit var txtStatus: TextView
-    private lateinit var btnBubble: Button
-    private lateinit var chkAutoInsert: CheckBox
-    private lateinit var chkStopOnBlur: CheckBox
     private lateinit var btnUpdate: Button
+    private lateinit var btnBubble: Button
+    private lateinit var txtBubbleState: TextView
+    private lateinit var cardSetup: View
+    private lateinit var setupRows: LinearLayout
+    private lateinit var txtSetupProgress: TextView
+    private lateinit var swAutoType: Switch
+    private lateinit var swStopOnBlur: Switch
+    private lateinit var swIsland: Switch
+    private lateinit var swShowBubble: Switch
+    private lateinit var swPolish: Switch
+    private lateinit var polishOptions: View
     private lateinit var spnStt: Spinner
+    private lateinit var rowSttModel: View
     private lateinit var edtSttModel: EditText
     private lateinit var edtLanguage: EditText
-    private lateinit var chkPolish: CheckBox
     private lateinit var spnLlm: Spinner
     private lateinit var edtLlmModel: EditText
     private lateinit var edtPrompt: EditText
@@ -48,93 +64,128 @@ class MainActivity : Activity(), DictationEngine.Listener {
 
     private var shownStt = SttProvider.BUILTIN
     private var shownLlm = LlmProvider.OPENAI
+    private var micPulse: ObjectAnimator? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        android.util.Log.i("Speaker.ui", "Activity onCreate (restored=${savedInstanceState != null})")
+        ui("Activity onCreate (restored=${savedInstanceState != null})")
         setContentView(R.layout.activity_main)
         applySystemBarPadding()
         prefs = Prefs(this)
         engine = DictationEngine(this, this, "app")
 
         btnTry = findViewById(R.id.btnTry)
+        txtTryStatus = findViewById(R.id.txtTryStatus)
+        txtTryHint = findViewById(R.id.txtTryHint)
         txtResult = findViewById(R.id.txtResult)
-        txtStatus = findViewById(R.id.txtStatus)
+        btnUpdate = findViewById(R.id.btnUpdate)
         btnBubble = findViewById(R.id.btnBubble)
-        chkAutoInsert = findViewById(R.id.chkAutoInsert)
+        txtBubbleState = findViewById(R.id.txtBubbleState)
+        cardSetup = findViewById(R.id.cardSetup)
+        setupRows = findViewById(R.id.setupRows)
+        txtSetupProgress = findViewById(R.id.txtSetupProgress)
+        swAutoType = findViewById(R.id.swAutoType)
+        swStopOnBlur = findViewById(R.id.swStopOnBlur)
+        swIsland = findViewById(R.id.swIsland)
+        swShowBubble = findViewById(R.id.swShowBubble)
+        swPolish = findViewById(R.id.swPolish)
+        polishOptions = findViewById(R.id.polishOptions)
         spnStt = findViewById(R.id.spnStt)
+        rowSttModel = findViewById(R.id.rowSttModel)
         edtSttModel = findViewById(R.id.edtSttModel)
         edtLanguage = findViewById(R.id.edtLanguage)
-        chkPolish = findViewById(R.id.chkPolish)
         spnLlm = findViewById(R.id.spnLlm)
         edtLlmModel = findViewById(R.id.edtLlmModel)
         edtPrompt = findViewById(R.id.edtPrompt)
         edtCustomUrl = findViewById(R.id.edtCustomUrl)
         edtLogUrl = findViewById(R.id.edtLogUrl)
 
+        findViewById<TextView>(R.id.txtVersion).text = "v${BuildConfig.VERSION_NAME}"
+        findViewById<TextView>(R.id.txtFooter).text =
+            "Speaker v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · your keys stay on this phone"
+
         buildKeyFields()
         setupSpinners()
         loadSettings()
+        wireActions()
+        applyFlavor()
+    }
 
+    /** Play builds have no server: hide the sideload Update button and the remote-log URL. */
+    private fun applyFlavor() {
+        if (BuildConfig.DEV_TOOLS) return
+        btnUpdate.visibility = View.GONE
+        edtLogUrl.visibility = View.GONE
+        findViewById<View>(R.id.lblLogUrl).visibility = View.GONE
+        findViewById<View>(R.id.btnTestLog).visibility = View.GONE
+        findViewById<TextView>(R.id.txtLogsBody).text =
+            "Having a problem? Copy or share a diagnostic log with support. Nothing is sent automatically, " +
+                "and the words you dictate are never written to the log."
+    }
+
+    private fun wireActions() {
         btnTry.setOnClickListener {
-            ui("Tap: in-app speak button (state=${engine.state})")
+            ui("Tap: in-app mic (state=${engine.state})")
             if (!hasMic()) { requestPerms(); return@setOnClickListener }
             saveSettings()
             engine.toggle()
         }
         findViewById<Button>(R.id.btnCopy).setOnClickListener {
             ui("Tap: Copy text (${txtResult.text.length} chars)")
-            val cm = getSystemService(ClipboardManager::class.java)
-            cm.setPrimaryClip(ClipData.newPlainText("Dictation", txtResult.text))
+            copy("Dictation", txtResult.text)
             toast("Copied")
         }
-        findViewById<Button>(R.id.btnMic).setOnClickListener { ui("Tap: Allow microphone"); requestPerms() }
-        findViewById<Button>(R.id.btnOverlay).setOnClickListener {
-            ui("Tap: Allow display over other apps")
-            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
-        }
-        findViewById<Button>(R.id.btnA11y).setOnClickListener {
-            ui("Tap: Enable auto-typing (opening Accessibility settings)")
-            toast("Find “Speaker auto-type” (may be under Installed/Downloaded apps) and turn it on")
-            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        findViewById<Button>(R.id.btnClear).setOnClickListener {
+            ui("Tap: Clear text")
+            txtResult.setText("")
+            resultBase = ""
         }
         btnBubble.setOnClickListener { ui("Tap: ${btnBubble.text}"); toggleBubble() }
-        findViewById<Button>(R.id.btnBattery).setOnClickListener {
-            ui("Tap: battery optimization settings (ignoring=${ignoringBattery()})")
-            toast("Find Speaker and choose “Don't optimize” / Unrestricted")
-            runCatching { startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
-                .onFailure { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) }
-        }
-        chkPolish.setOnCheckedChangeListener { _, on -> ui("Toggle: LLM polish = $on") }
-        chkAutoInsert.setOnCheckedChangeListener { _, on -> ui("Toggle: auto-type = $on") }
-        chkStopOnBlur = findViewById(R.id.chkStopOnBlur)
-        chkStopOnBlur.isChecked = prefs.stopOnFocusLoss
-        chkStopOnBlur.setOnCheckedChangeListener { _, on -> ui("Toggle: stop when leaving text field = $on"); prefs.stopOnFocusLoss = on }
-        btnUpdate = findViewById(R.id.btnUpdate)
-        btnUpdate.text = "⬆ Update app (installed v${BuildConfig.VERSION_NAME})"
         btnUpdate.setOnClickListener {
-            ui("Tap: Check for update")
+            ui("Tap: Update")
             saveSettings()
             btnUpdate.isEnabled = false
+            btnUpdate.text = "Checking…"
             Updater.checkAndInstall(this) { msg ->
                 btnUpdate.isEnabled = true
+                btnUpdate.text = "Update"
                 toast(msg)
             }
         }
-        findViewById<Button>(R.id.btnSave).setOnClickListener { ui("Tap: Save settings"); saveSettings(); toast("Saved") }
+        swAutoType.setOnCheckedChangeListener { _, on -> ui("Toggle: auto-type = $on"); prefs.autoInsert = on }
+        swStopOnBlur.setOnCheckedChangeListener { _, on -> ui("Toggle: stop when leaving text field = $on"); prefs.stopOnFocusLoss = on }
+        swIsland.setOnCheckedChangeListener { _, on ->
+            if (prefs.islandMedia == on) return@setOnCheckedChangeListener
+            ui("Toggle: island/media controls = $on"); prefs.islandMedia = on; BubbleService.refresh(this)
+        }
+        swShowBubble.setOnCheckedChangeListener { _, on ->
+            if (prefs.showBubble == on) return@setOnCheckedChangeListener
+            ui("Toggle: show floating bubble = $on"); prefs.showBubble = on; BubbleService.refresh(this)
+        }
+        swPolish.setOnCheckedChangeListener { _, on ->
+            polishOptions.visibility = if (on) View.VISIBLE else View.GONE
+            findViewById<View>(R.id.btnEditPrompt).visibility = if (on) View.VISIBLE else View.GONE
+            if (prefs.polishEnabled == on) return@setOnCheckedChangeListener // just loading settings
+            ui("Toggle: AI rewrite = $on")
+            if (on) showPromptDialog(enabling = true) else prefs.polishEnabled = false
+        }
+        findViewById<Button>(R.id.btnEditPrompt).setOnClickListener {
+            ui("Tap: Edit session prompt")
+            showPromptDialog(enabling = false)
+        }
         findViewById<Button>(R.id.btnTestLog).setOnClickListener {
             ui("Tap: Test log URL")
             saveSettings()
             val url = prefs.logUrl
-            if (url.isEmpty()) { toast("Enter your ngrok URL first (or use Copy logs)"); return@setOnClickListener }
+            if (url.isEmpty()) { toast("Enter your log URL first (or use Copy)"); return@setOnClickListener }
             toast("Testing…")
             RemoteLog.test(url) { toast(it) }
         }
+        findViewById<View>(R.id.btnPrivacy).setOnClickListener { ui("Tap: Privacy"); showPrivacy() }
         findViewById<Button>(R.id.btnCopyLogs).setOnClickListener {
             ui("Tap: Copy logs")
-            val cm = getSystemService(ClipboardManager::class.java)
-            cm.setPrimaryClip(ClipData.newPlainText("Speaker logs", RemoteLog.recentText()))
-            toast("Logs copied. Paste them anywhere (WhatsApp, email, chat)")
+            copy("Speaker logs", RemoteLog.recentText())
+            toast("Logs copied. Paste them anywhere")
         }
         findViewById<Button>(R.id.btnShareLogs).setOnClickListener {
             ui("Tap: Share logs")
@@ -149,12 +200,12 @@ class MainActivity : Activity(), DictationEngine.Listener {
 
     override fun onResume() {
         super.onResume()
-        ui("Settings screen opened (multi-window=${isInMultiWindowMode})")
+        ui("Settings screen opened (multi-window=$isInMultiWindowMode)")
         refreshStatus()
-        // Quietly check the PC for a newer build and advertise it on the button.
-        Updater.check(this) { info ->
+        if (BuildConfig.DEV_TOOLS) Updater.check(this) { info ->
             if (info != null && info.versionCode > BuildConfig.VERSION_CODE) {
-                btnUpdate.text = "⬆ Update available: v${info.versionName}. Tap to install"
+                btnUpdate.text = "Update to v${info.versionName}"
+                btnUpdate.setBackgroundResource(R.drawable.bg_pill_success)
             }
         }
     }
@@ -165,34 +216,135 @@ class MainActivity : Activity(), DictationEngine.Listener {
         super.onPause()
     }
 
+    override fun onStart() {
+        super.onStart()
+        ui("Activity onStart")
+    }
+
+    override fun onStop() {
+        ui("Activity onStop (in-app dictation state=${engine.state}, bubble running=${BubbleService.isRunning})")
+        // The in-app mic has no foreground service: Android blocks it in the background anyway, and an
+        // app must not keep listening once the user has left it. The bubble is for other apps.
+        engine.stopIfActive("app moved to the background")
+        super.onStop()
+    }
+
+    override fun onMultiWindowModeChanged(isInMultiWindowMode: Boolean, newConfig: Configuration?) {
+        super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)
+        ui("Multi-window mode changed: $isInMultiWindowMode")
+    }
+
+    override fun onDestroy() {
+        ui("Activity onDestroy (isFinishing=$isFinishing, in-app dictation state=${engine.state}); releasing in-app engine")
+        micPulse?.cancel()
+        engine.release()
+        super.onDestroy()
+    }
+
     private fun ui(msg: String) = android.util.Log.i("Speaker.ui", msg)
 
+    private val promptPresets = listOf(
+        "Fix grammar" to "Fix grammar, spelling and punctuation. Keep my words and tone; change as little as possible.",
+        "Professional" to "Rewrite it as clear, polite, professional writing suitable for work chat or email.",
+        "Casual" to "Rewrite it as friendly, casual chat. Fix mistakes, keep it short and natural.",
+        "To English" to "Translate it into natural English (it may be Hindi, Hinglish or another language). Fix grammar.",
+        "Concise" to "Make it shorter and clearer without losing meaning. Fix grammar.",
+        "Commands" to "I am dictating a terminal command. Output only the shell command, in lowercase where appropriate, with correct symbols and no explanation.",
+    )
+
     /**
-     * Android 15+ draws apps edge-to-edge (behind the status bar, navigation bar and keyboard).
-     * Pad the root layout by those areas so nothing is hidden and every control can be reached.
+     * Session prompt editor. Opened when AI rewrite is switched on (Cancel leaves it off) and from
+     * "Edit session prompt". The prompt is sent to the LLM with every phrase you dictate.
+     */
+    private fun showPromptDialog(enabling: Boolean) {
+        val field = EditText(this, null, 0, R.style.Field).apply {
+            setText(prefs.polishPrompt)
+            setSelection(text.length)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+            minLines = 4
+            maxLines = 8
+            gravity = android.view.Gravity.TOP or android.view.Gravity.START
+            hint = "e.g. Fix my grammar and make it sound professional"
+        }
+        val chips = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        promptPresets.forEach { (label, text) ->
+            chips.addView(Button(this, null, 0, R.style.ButtonTonal).apply {
+                this.text = label
+                isAllCaps = false
+                setOnClickListener { ui("Prompt preset: $label"); field.setText(text); field.setSelection(field.text.length) }
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(40)).apply { marginEnd = dp(8) })
+        }
+        val body = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(22), dp(8), dp(22), 0)
+            addView(TextView(this@MainActivity, null, 0, R.style.Body).apply {
+                text = "Tell the AI what to do with everything you say. It's applied to every sentence before it's typed."
+            })
+            addView(android.widget.HorizontalScrollView(this@MainActivity).apply {
+                isHorizontalScrollBarEnabled = false
+                addView(chips)
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12) })
+            addView(field, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12) })
+        }
+        var saved = false
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle(if (enabling) "Turn on AI rewrite" else "Session prompt")
+            .setView(android.widget.ScrollView(this).apply { addView(body) })
+            .setPositiveButton(if (enabling) "Turn on" else "Save") { _, _ ->
+                saved = true
+                val p = field.text.toString().trim()
+                prefs.polishPrompt = p // blank falls back to the default clean-up prompt
+                edtPrompt.setText(prefs.polishPrompt)
+                prefs.polishEnabled = true
+                ui("Session prompt saved (${p.length} chars, AI rewrite on)")
+                val llm = LlmProvider.from(prefs.llmProvider)
+                if (prefs.apiKey(llm.vendor).isBlank()) {
+                    toast("AI rewrite is on. Add your ${llm.label} API key in API keys below")
+                } else toast("AI rewrite is on (${llm.label})")
+            }
+            .setNegativeButton("Cancel", null)
+            .create()
+        dialog.setOnDismissListener {
+            if (enabling && !saved) {
+                ui("Prompt dialog cancelled: AI rewrite stays off")
+                swPolish.isChecked = false
+            }
+        }
+        dialog.show()
+    }
+
+    // ---------------- layout / system bars ----------------
+
+    /**
+     * Android 15+ draws edge-to-edge. The gradient header extends under the status bar (padded by its
+     * height); the rest of the layout is padded for the navigation bar, cutouts and keyboard.
      */
     private fun applySystemBarPadding() {
-        if (Build.VERSION.SDK_INT < 35) return // older Android isn't edge-to-edge; the system already insets us
+        val dark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+        if (Build.VERSION.SDK_INT >= 30 && !dark) {
+            // Dark navigation-bar icons on our light background; status bar stays light-on-gradient.
+            window.insetsController?.setSystemBarsAppearance(
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
+                android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
+            )
+        }
+        if (Build.VERSION.SDK_INT < 35) return // older Android isn't edge-to-edge
         val root = findViewById<View>(R.id.root)
+        val header = findViewById<View>(R.id.header)
+        val headerTop = header.paddingTop
         root.setOnApplyWindowInsetsListener { v, insets ->
-            val (l, t, r, b) = if (Build.VERSION.SDK_INT >= 30) {
-                val bars = insets.getInsets(android.view.WindowInsets.Type.systemBars() or
-                    android.view.WindowInsets.Type.displayCutout())
-                val ime = insets.getInsets(android.view.WindowInsets.Type.ime())
-                listOf(bars.left, bars.top, bars.right, maxOf(bars.bottom, ime.bottom))
-            } else {
-                @Suppress("DEPRECATION")
-                listOf(insets.systemWindowInsetLeft, insets.systemWindowInsetTop,
-                    insets.systemWindowInsetRight, insets.systemWindowInsetBottom)
-            }
-            v.setPadding(l, t, r, b)
-            ui("Window insets applied: left=$l top=$t right=$r bottom=$b")
+            val bars = insets.getInsets(android.view.WindowInsets.Type.systemBars() or android.view.WindowInsets.Type.displayCutout())
+            val ime = insets.getInsets(android.view.WindowInsets.Type.ime())
+            v.setPadding(bars.left, 0, bars.right, maxOf(bars.bottom, ime.bottom))
+            header.setPadding(header.paddingLeft, headerTop + bars.top, header.paddingRight, header.paddingBottom)
+            ui("Window insets applied: top=${bars.top} bottom=${maxOf(bars.bottom, ime.bottom)} left=${bars.left} right=${bars.right}")
             insets
         }
         root.requestApplyInsets()
     }
 
-    /** Settings snapshot for logs. Says which keys are set, never the keys themselves. */
+    // ---------------- settings ----------------
+
     private fun settingsSummary(): String {
         val stt = SttProvider.from(prefs.sttProvider)
         val llm = LlmProvider.from(prefs.llmProvider)
@@ -202,55 +354,28 @@ class MainActivity : Activity(), DictationEngine.Listener {
             "keysSet=$keys logUrl=${if (prefs.logUrl.isEmpty()) "off" else "on"}"
     }
 
-    override fun onStart() {
-        super.onStart()
-        ui("Activity onStart")
-    }
-
-    override fun onStop() {
-        ui("Activity onStop (in-app dictation state=${engine.state}, bubble running=${BubbleService.isRunning})")
-        if (engine.state != DictationEngine.State.IDLE) {
-            android.util.Log.w("Speaker.ui", "In-app dictation is active while the screen is hidden: Android may " +
-                "silence the mic. Use the floating bubble to dictate into other apps.")
-        }
-        super.onStop()
-    }
-
-    override fun onMultiWindowModeChanged(isInMultiWindowMode: Boolean, newConfig: android.content.res.Configuration?) {
-        super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)
-        ui("Multi-window mode changed: $isInMultiWindowMode")
-    }
-
-    override fun onDestroy() {
-        ui("Activity onDestroy (isFinishing=$isFinishing, in-app dictation state=${engine.state}); releasing in-app engine")
-        engine.release()
-        super.onDestroy()
-    }
-
-    // ---- Settings UI ----
-
     private fun buildKeyFields() {
         val container = findViewById<LinearLayout>(R.id.keysContainer)
         KEY_VENDORS.forEach { (vendor, label) ->
-            val field = EditText(this).apply {
-                hint = label
+            val title = TextView(this, null, 0, R.style.Label).apply { text = label.uppercase() }
+            val field = EditText(this, null, 0, R.style.Field).apply {
+                hint = "Paste key"
                 inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_PASSWORD
                 isSingleLine = true
-                // Keep password managers from offering to save/fill API keys.
-                importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO
+                importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_NO // keep password managers away from API keys
             }
-            container.addView(field)
+            container.addView(title, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(16); bottomMargin = dp(6) })
+            container.addView(field, LinearLayout.LayoutParams(-1, -2))
             keyFields[vendor] = field
         }
     }
 
     private fun setupSpinners() {
-        spnStt.adapter = ArrayAdapter(
-            this, android.R.layout.simple_spinner_dropdown_item, SttProvider.entries.map { it.label }
-        )
-        spnLlm.adapter = ArrayAdapter(
-            this, android.R.layout.simple_spinner_dropdown_item, LlmProvider.entries.map { it.label }
-        )
+        fun adapter(items: List<String>) = ArrayAdapter(this, R.layout.spinner_item, items).apply {
+            setDropDownViewResource(R.layout.spinner_dropdown_item)
+        }
+        spnStt.adapter = adapter(SttProvider.entries.map { it.label })
+        spnLlm.adapter = adapter(LlmProvider.entries.map { it.label })
         spnStt.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
                 prefs.setSttModel(shownStt, edtSttModel.text.toString())
@@ -258,7 +383,7 @@ class MainActivity : Activity(), DictationEngine.Listener {
                 shownStt = SttProvider.entries[pos]
                 prefs.sttProvider = shownStt.id
                 edtSttModel.setText(prefs.sttModel(shownStt))
-                edtSttModel.visibility = if (shownStt == SttProvider.BUILTIN) View.GONE else View.VISIBLE
+                rowSttModel.visibility = if (shownStt == SttProvider.BUILTIN) View.GONE else View.VISIBLE
             }
             override fun onNothingSelected(p: AdapterView<*>?) = Unit
         }
@@ -281,9 +406,15 @@ class MainActivity : Activity(), DictationEngine.Listener {
         edtLlmModel.setText(prefs.llmModel(shownLlm))
         spnStt.setSelection(shownStt.ordinal)
         spnLlm.setSelection(shownLlm.ordinal)
+        rowSttModel.visibility = if (shownStt == SttProvider.BUILTIN) View.GONE else View.VISIBLE
         edtLanguage.setText(prefs.language)
-        chkPolish.isChecked = prefs.polishEnabled
-        chkAutoInsert.isChecked = prefs.autoInsert
+        swPolish.isChecked = prefs.polishEnabled
+        polishOptions.visibility = if (prefs.polishEnabled) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.btnEditPrompt).visibility = if (prefs.polishEnabled) View.VISIBLE else View.GONE
+        swAutoType.isChecked = prefs.autoInsert
+        swStopOnBlur.isChecked = prefs.stopOnFocusLoss
+        swIsland.isChecked = prefs.islandMedia
+        swShowBubble.isChecked = prefs.showBubble
         edtPrompt.setText(prefs.polishPrompt)
         edtCustomUrl.setText(prefs.customBaseUrl)
         keyFields.forEach { (vendor, field) -> field.setText(prefs.apiKey(vendor)) }
@@ -296,8 +427,9 @@ class MainActivity : Activity(), DictationEngine.Listener {
         prefs.llmProvider = shownLlm.id
         prefs.setLlmModel(shownLlm, edtLlmModel.text.toString())
         prefs.language = edtLanguage.text.toString()
-        prefs.polishEnabled = chkPolish.isChecked
-        prefs.autoInsert = chkAutoInsert.isChecked
+        prefs.polishEnabled = swPolish.isChecked
+        prefs.autoInsert = swAutoType.isChecked
+        prefs.stopOnFocusLoss = swStopOnBlur.isChecked
         prefs.polishPrompt = edtPrompt.text.toString()
         prefs.customBaseUrl = edtCustomUrl.text.toString()
         keyFields.forEach { (vendor, field) -> prefs.setApiKey(vendor, field.text.toString()) }
@@ -305,7 +437,7 @@ class MainActivity : Activity(), DictationEngine.Listener {
         RemoteLog.setUrl(prefs.logUrl)
     }
 
-    // ---- Permissions & bubble ----
+    // ---------------- permissions, setup checklist, bubble ----------------
 
     private fun ignoringBattery() =
         getSystemService(android.os.PowerManager::class.java).isIgnoringBatteryOptimizations(packageName)
@@ -326,6 +458,120 @@ class MainActivity : Activity(), DictationEngine.Listener {
         refreshStatus()
     }
 
+    private data class SetupItem(val done: Boolean, val title: String, val subtitle: String, val action: String, val fix: () -> Unit)
+
+    private fun setupItems() = listOf(
+        SetupItem(hasMic(), "Microphone", "Needed to hear you", "Allow") {
+            ui("Tap: setup Microphone"); requestPerms()
+        },
+        SetupItem(Settings.canDrawOverlays(this), "Display over apps", "Shows the floating bubble", "Allow") {
+            ui("Tap: setup Display over other apps")
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+        },
+        SetupItem(TypeAccessibilityService.isEnabled(this), "Auto-typing", "Types into any text field", "Enable") {
+            ui("Tap: setup Auto-typing (showing accessibility disclosure)")
+            showAccessibilityDisclosure()
+        },
+        SetupItem(ignoringBattery(), "Run in background", "Stops the phone closing the bubble", "Allow") {
+            ui("Tap: setup battery optimization (ignoring=${ignoringBattery()})")
+            toast("Choose Speaker → “Don't optimize” / Unrestricted")
+            runCatching { startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
+                .onFailure { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) }
+        },
+    )
+
+    /**
+     * Google Play requires a prominent, in-app disclosure and the user's affirmative consent before
+     * an app that isn't an accessibility tool sends them to turn on its AccessibilityService.
+     */
+    private fun showAccessibilityDisclosure() {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Allow Speaker to type for you?")
+            .setMessage(
+                "Speaker uses Android's Accessibility service to type the words you dictate into the text " +
+                    "field you're using in any app, the way a keyboard does.\n\n" +
+                    "• It only types when you start dictation.\n" +
+                    "• It does not read, collect, store or share your screen content or anything you type.\n" +
+                    "• No data from this service leaves your phone.\n\n" +
+                    "On the next screen, open “Speaker auto-type” and turn it on. You can turn it off any time " +
+                    "in Settings → Accessibility."
+            )
+            .setPositiveButton("Agree & continue") { _, _ ->
+                ui("Accessibility disclosure: agreed; opening Accessibility settings")
+                runCatching { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
+                    .onFailure { toast("Open Settings → Accessibility → Speaker auto-type") }
+                toast(
+                    if (BuildConfig.DEV_TOOLS) "Open “Speaker auto-type” and turn it on. Greyed out? App info → ⋮ → Allow restricted settings"
+                    else "Open “Speaker auto-type” and turn it on"
+                )
+            }
+            .setNegativeButton("Not now") { _, _ ->
+                ui("Accessibility disclosure: declined")
+                toast("Without auto-typing, dictation is copied to the clipboard so you can paste it")
+            }
+            .show()
+    }
+
+    /** Short in-app privacy summary (the full policy must also be linked in the Play listing). */
+    private fun showPrivacy() {
+        val policyUrl = getString(R.string.privacy_policy_url)
+        val builder = android.app.AlertDialog.Builder(this)
+            .setTitle("Privacy & permissions")
+            .setMessage(
+                "Speaker has no account, no servers and no analytics. The developer receives nothing.\n\n" +
+                    "• Microphone: used only while you dictate. With the built-in engine, audio is processed by " +
+                    "your phone's speech service (Android/Google). With an API engine, each phrase is sent " +
+                    "straight from your phone to the provider you chose (OpenAI, Groq, Google Gemini, Deepgram " +
+                    "or your custom URL), using your own key.\n" +
+                    "• AI rewrite (optional): your transcribed text and your prompt go to the AI provider you chose.\n" +
+                    "• API keys and settings stay on this phone (not backed up) and go only to that provider.\n" +
+                    "• Accessibility: only types your dictation into the focused field; nothing is read or collected.\n" +
+                    "• Display over other apps: shows the floating mic bubble.\n\n" +
+                    "Providers handle your data under their own privacy policies."
+            )
+            .setPositiveButton("OK", null)
+        if (policyUrl.startsWith("https://")) {
+            builder.setNeutralButton("Full policy") { _, _ ->
+                runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(policyUrl))) }
+            }
+        }
+        builder.show()
+    }
+
+    private fun refreshStatus() {
+        val items = setupItems()
+        val done = items.count { it.done }
+        txtSetupProgress.text = "$done of ${items.size}"
+        cardSetup.visibility = if (done == items.size) View.GONE else View.VISIBLE
+        setupRows.removeAllViews()
+        val inflater = LayoutInflater.from(this)
+        for (item in items) {
+            val row = inflater.inflate(R.layout.row_setup, setupRows, false)
+            row.findViewById<TextView>(R.id.title).text = item.title
+            row.findViewById<TextView>(R.id.subtitle).text = if (item.done) "Done" else item.subtitle
+            row.findViewById<ImageView>(R.id.icon).apply {
+                setImageResource(if (item.done) R.drawable.ic_check_circle else R.drawable.ic_alert_circle)
+                setBackgroundResource(if (item.done) R.drawable.bg_status_ok else R.drawable.bg_status_todo)
+            }
+            row.findViewById<Button>(R.id.action).apply {
+                text = item.action
+                visibility = if (item.done) View.GONE else View.VISIBLE
+                setOnClickListener { item.fix() }
+            }
+            setupRows.addView(row)
+        }
+
+        val running = BubbleService.isRunning
+        btnBubble.text = if (running) "Stop floating bubble" else "Start floating bubble"
+        btnBubble.setBackgroundResource(if (running) R.drawable.bg_button_danger else R.drawable.bg_button_primary)
+        txtBubbleState.text = if (running) "● On" else "Off"
+        txtBubbleState.setTextColor(getColor(if (running) R.color.success else R.color.text_secondary))
+
+        ui("Status: mic=${hasMic()} overlay=${Settings.canDrawOverlays(this)} " +
+            "autoType=${TypeAccessibilityService.isEnabled(this)} a11yConnected=${TypeAccessibilityService.instance != null} " +
+            "batteryUnrestricted=${ignoringBattery()} bubble=$running setupDone=$done/${items.size}")
+    }
+
     private fun toggleBubble() {
         if (BubbleService.isRunning) {
             stopService(Intent(this, BubbleService::class.java))
@@ -343,22 +589,7 @@ class MainActivity : Activity(), DictationEngine.Listener {
         btnBubble.postDelayed({ refreshStatus() }, 300)
     }
 
-    private fun refreshStatus() {
-        fun line(ok: Boolean, text: String) = (if (ok) "✅ " else "⬜ ") + text
-        txtStatus.text = listOf(
-            line(hasMic(), "Microphone"),
-            line(Settings.canDrawOverlays(this), "Display over other apps (bubble)"),
-            line(TypeAccessibilityService.isEnabled(this), "Auto-typing (optional; otherwise text is copied)"),
-            line(ignoringBattery(), "Battery: not restricted (stops the phone killing the bubble)"),
-            line(BubbleService.isRunning, "Bubble running"),
-        ).joinToString("\n")
-        btnBubble.text = if (BubbleService.isRunning) "Stop floating bubble" else "Start floating bubble"
-        ui("Status: mic=${hasMic()} overlay=${Settings.canDrawOverlays(this)} " +
-            "autoType=${TypeAccessibilityService.isEnabled(this)} a11yConnected=${TypeAccessibilityService.instance != null} " +
-            "batteryUnrestricted=${ignoringBattery()} bubble=${BubbleService.isRunning}")
-    }
-
-    // ---- In-app dictation ----
+    // ---------------- in-app dictation ----------------
 
     /** Text in the box before the current phrase; live words are shown after it. */
     private var resultBase = ""
@@ -367,12 +598,47 @@ class MainActivity : Activity(), DictationEngine.Listener {
         if (state == DictationEngine.State.RECORDING) {
             resultBase = txtResult.text.toString().let { if (it.isNotEmpty() && !it.last().isWhitespace()) "$it " else it }
         }
-        btnTry.text = when (state) {
-            DictationEngine.State.IDLE -> "🎤  Tap to speak"
-            DictationEngine.State.RECORDING -> "⏹  Listening (live). Tap to stop"
-            DictationEngine.State.WORKING -> "…  Finishing last words"
+        when (state) {
+            DictationEngine.State.IDLE -> {
+                btnTry.setBackgroundResource(R.drawable.bg_mic_idle)
+                btnTry.setImageResource(R.drawable.ic_mic)
+                txtTryStatus.text = "Tap to dictate"
+                txtTryHint.text = "Try it here, or use the floating bubble in any app"
+            }
+            DictationEngine.State.RECORDING -> {
+                btnTry.setBackgroundResource(R.drawable.bg_mic_recording)
+                btnTry.setImageResource(R.drawable.ic_stop)
+                txtTryStatus.text = "Listening…"
+                txtTryHint.text = "Speak naturally. Pauses are fine. Tap to stop"
+            }
+            DictationEngine.State.WORKING -> {
+                btnTry.setBackgroundResource(R.drawable.bg_mic_working)
+                btnTry.setImageResource(R.drawable.ic_dots)
+                txtTryStatus.text = "Finishing…"
+            }
         }
         btnTry.isEnabled = state != DictationEngine.State.WORKING
+        setMicPulse(state == DictationEngine.State.RECORDING)
+    }
+
+    private fun setMicPulse(on: Boolean) {
+        if (on && micPulse == null) {
+            micPulse = ObjectAnimator.ofPropertyValuesHolder(
+                btnTry,
+                PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.08f),
+                PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.08f),
+            ).apply {
+                duration = 650
+                repeatCount = ValueAnimator.INFINITE
+                repeatMode = ValueAnimator.REVERSE
+                start()
+            }
+        } else if (!on) {
+            micPulse?.cancel()
+            micPulse = null
+            btnTry.scaleX = 1f
+            btnTry.scaleY = 1f
+        }
     }
 
     override fun onText(text: String, isFinal: Boolean, sessionText: String) {
@@ -389,6 +655,13 @@ class MainActivity : Activity(), DictationEngine.Listener {
         android.util.Log.w("Speaker.ui", "Error shown in app: $message")
         toast(message)
     }
+
+    // ---------------- helpers ----------------
+
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+    private fun copy(label: String, text: CharSequence) =
+        getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText(label, text))
 
     private fun toast(msg: String) {
         ui("Toast: $msg")

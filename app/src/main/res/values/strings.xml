@@ -1,3 +1,6 @@
 <resources>
-    <string name="a11y_description">Lets Speaker type your transcribed speech into the text field you are currently focused on in any app. Speaker does not read or store screen content; it only looks up the focused input field when you finish dictating.</string>
+    <string name="a11y_description">Speaker uses this to type the words you dictate into the text field you are using, the way a keyboard does. It only acts when you start dictation. Speaker does not read, collect, store or share what is on your screen.</string>
+    <string name="a11y_summary">Types your dictation into the focused text field</string>
+    <!-- Where you host docs/privacy-policy.html (e.g. GitHub Pages). Same URL goes in Play Console. -->
+    <string name="privacy_policy_url" translatable="false"></string>
 </resources>

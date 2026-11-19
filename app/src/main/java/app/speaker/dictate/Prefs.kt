@@ -83,6 +83,15 @@ class Prefs(context: Context) {
         get() = str("muted_streams")
         set(v) = put("muted_streams", v)
 
+    /** Publish a media session so the phone's island (realme Fluid Cloud / Live Alerts) shows a play/pause control. */
+    var islandMedia: Boolean
+        get() = sp.getBoolean("island_media", true)
+        set(v) = sp.edit().putBoolean("island_media", v).apply()
+
+    var showBubble: Boolean
+        get() = sp.getBoolean("show_bubble", true)
+        set(v) = sp.edit().putBoolean("show_bubble", v).apply()
+
     var stopOnFocusLoss: Boolean
         get() = sp.getBoolean("stop_on_focus_loss", true)
         set(v) = sp.edit().putBoolean("stop_on_focus_loss", v).apply()

@@ -76,7 +76,7 @@ node tools\log-server.mjs                     # window 1: prints every log line 
 
 Every tap, setting change, dictation phrase, provider reply, error and crash appears in window 1 and is also
 saved to `.ai-workspace/logs/device.log`. Without window 1, ngrok's inspector at `http://127.0.0.1:4040` still
-shows each batch (ngrok answers 502 then, which the app treats as delivered).
+shows each batch (ngrok answers 502 then; the app keeps those lines and resends them once the receiver answers 2xx).
 
 The app sends to the URL in *Debug logs*, which you can type on the phone. To skip typing, bake the URL into the
 build: set `speakerLogUrl=https://<your-domain>.ngrok-free.app/log` in `gradle.properties` and rebuild. Free
@@ -97,3 +97,10 @@ Toolchain (portable, under `%USERPROFILE%\devtools`): Temurin JDK 17, Android SD
 Wireless debugging (no USB driver needed): on the phone, open *Developer options → Wireless debugging
 → Pair device with pairing code*, then on the PC run
 `adb pair <ip:port>` followed by `adb connect <ip:port>` (adb is in `devtools\android-sdk\platform-tools`).
+
+## Google Play build
+
+There are two flavors. **dev** (`gradlew assembleDevDebug`) is the sideloaded test build with the live logs and the
+Update button described above. **play** (`gradlew bundlePlayRelease`) is what goes to Google Play: no server, no
+self-update, no remote logging. Release steps and policy notes: `docs/play-store-release-checklist.md`; privacy
+policy to host: `docs/privacy-policy.html`.

@@ -13,7 +13,7 @@ import java.net.URL
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.TimeUnit
 
-/** Application entry point: starts remote logging before anything else runs. */
+/** Application entry point: starts logging before anything else runs. */
 class SpeakerApp : Application() {
     override fun onCreate() {
         super.onCreate()
@@ -23,12 +23,22 @@ class SpeakerApp : Application() {
 }
 
 /**
- * Streams this app's own logcat (everything logged in our process, including system warnings
- * about our audio/services) to the "Debug log URL" set in settings, e.g. the ngrok tunnel
- * started by ngrok-logs.ps1 on the PC. Crashes are saved to a file and sent on the next start.
+ * Dictated words in logs. Dev builds log the text (to debug recognition); Play builds log only
+ * its length, so a user's speech never sits in logcat or in a log they share.
+ */
+fun spoken(text: CharSequence): String =
+    if (BuildConfig.DEV_TOOLS) "\"${text.take(200)}\"" else "<${text.length} chars>"
+
+/**
+ * Keeps a local ring of this app's own logcat for the user-initiated "Copy / Share logs" buttons.
+ *
+ * Dev flavor only: also streams it to the "log URL" (the PC via ngrok). The Play flavor never
+ * sends anything anywhere (BuildConfig.DEV_TOOLS is a compile-time constant, so R8 strips the
+ * network code). Crashes are saved to a file and shown/sent on the next start.
  *
  * Never log API keys. Http.kt logs URLs, status codes and error bodies only.
  */
+@android.annotation.SuppressLint("StaticFieldLeak") // holds the Application context only
 object RemoteLog {
     const val TAG = "Speaker"
 
@@ -44,14 +54,14 @@ object RemoteLog {
         if (started) return
         started = true
         appCtx = ctx.applicationContext
-        url = Prefs(appCtx).logUrl
+        url = if (BuildConfig.DEV_TOOLS) Prefs(appCtx).logUrl else ""
         val version = runCatching {
             appCtx.packageManager.getPackageInfo(appCtx.packageName, 0).versionName
         }.getOrDefault("?")
         source = "${Build.MANUFACTURER} ${Build.MODEL}, Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})|$version"
         installCrashHandler()
         Thread(::pumpLogcat, "log-pump").apply { isDaemon = true; start() }
-        Thread(::sendLoop, "log-sender").apply { isDaemon = true; start() }
+        if (BuildConfig.DEV_TOOLS) Thread(::sendLoop, "log-sender").apply { isDaemon = true; start() }
         File(appCtx.filesDir, "last-crash.txt").takeIf { it.exists() }?.let { f ->
             runCatching { f.readLines().forEach { enqueue("PREVIOUS CRASH | $it") } }
             f.delete()
@@ -60,12 +70,14 @@ object RemoteLog {
     }
 
     fun setUrl(newUrl: String) {
+        if (!BuildConfig.DEV_TOOLS) return
         if (newUrl != url) Log.i("Speaker.logs", "Log URL set to ${newUrl.ifEmpty { "(off)" }}")
         url = newUrl
     }
 
     /** Sends one line directly and reports the HTTP result (for the "Test" button). */
     fun test(target: String, done: (String) -> Unit) {
+        if (!BuildConfig.DEV_TOOLS) return
         val main = Handler(Looper.getMainLooper())
         Thread {
             val result = runCatching {
@@ -130,15 +142,16 @@ object RemoteLog {
             val first = queue.pollFirst(2, TimeUnit.SECONDS) ?: continue
             val batch = mutableListOf(first)
             while (batch.size < 300) batch += queue.pollFirst() ?: break
-            // Any HTTP answer counts as delivered: with plain `ngrok http` and no local server, ngrok
-            // replies 502 but still records the request body in its inspector (127.0.0.1:4040).
-            // Only network failures (tunnel down, no internet) are retried.
-            val result = runCatching { "HTTP ${post(target, batch)}" }.getOrElse { "network error: ${it.message}" }
-            val sent = result.startsWith("HTTP")
+            // Only a 2xx from our log server counts as delivered. Anything else (ngrok "endpoint
+            // offline" 404, 502/503 while the PC server is down, no network) keeps the batch queued
+            // and retries, so logs from an outage arrive later instead of being thrown away.
+            val code = runCatching { post(target, batch) }
+            val result = code.map { "HTTP $it" }.getOrElse { "network error: ${it.message}" }
+            val sent = code.getOrNull() in 200..299
             if (result != lastUploadResult) {
                 // Logged once per change (not per batch) so it doesn't feed itself.
                 Log.i("Speaker.logs", "Log upload to ${URL(target).host}${URL(target).path}: $result" +
-                    if (result == "HTTP 404") " (PC log receiver is old: restart `node tools\\log-server.mjs`)" else "")
+                    if (!sent) " (kept ${queue.size + batch.size} lines; will retry)" else "")
                 lastUploadResult = result
             }
             if (!sent) {
@@ -177,7 +190,7 @@ object RemoteLog {
             val text = "FATAL CRASH in thread '${thread.name}':\n" + Log.getStackTraceString(error)
             runCatching { File(appCtx.filesDir, "last-crash.txt").writeText(text) }
             val target = url
-            if (target.isNotEmpty()) {
+            if (BuildConfig.DEV_TOOLS && target.isNotEmpty()) {
                 // Network isn't allowed on the main thread; try quickly from a helper thread.
                 val t = Thread {
                     runCatching {

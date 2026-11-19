@@ -21,7 +21,17 @@ import kotlin.math.max
  * gaps. While no recognizer is attached (e.g. during a restart) audio is kept in a short ring buffer and
  * replayed into the next pipe, so words spoken during a restart aren't lost.
  */
-class MicPipe {
+class MicPipe(private val events: Events? = null) {
+    /** Called on the mic thread. */
+    interface Events {
+        /** The recognizer closed its end of the stream without us asking (it stopped listening). */
+        fun onPipeClosedByRecognizer()
+        /** Android started/stopped feeding us silence because another app took the microphone. */
+        fun onMicSilenced(silenced: Boolean)
+        /** The microphone could not be (re)opened; the stream has ended. */
+        fun onMicFailed(error: Exception)
+    }
+
     companion object {
         const val SAMPLE_RATE = 16_000
         private const val TAG = "Speaker.micpipe"
@@ -40,7 +50,7 @@ class MicPipe {
         private set
 
     @SuppressLint("MissingPermission") // DictationEngine checks RECORD_AUDIO first
-    fun start() {
+    private fun openRecord(): AudioRecord {
         val minBuf = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         val record = AudioRecord(
             MediaRecorder.AudioSource.VOICE_RECOGNITION, SAMPLE_RATE,
@@ -51,23 +61,64 @@ class MicPipe {
             throw IllegalStateException("Microphone is unavailable (another app may be using it)")
         }
         record.startRecording()
+        return record
+    }
+
+    fun start() {
+        val record = openRecord()
         running = true
         Log.i(TAG, "Mic opened for the session (continuous stream)")
         thread = Thread({ loop(record) }, "mic-pipe").also { it.start() }
     }
 
-    private fun loop(record: AudioRecord) {
+    /** Android 10+: true while the OS feeds us silence because another app holds the mic. */
+    private fun isSilenced(record: AudioRecord): Boolean =
+        android.os.Build.VERSION.SDK_INT >= 29 &&
+            runCatching { record.activeRecordingConfiguration?.isClientSilenced == true }.getOrDefault(false)
+
+    private fun loop(initial: AudioRecord) {
+        var record = initial
         var readErrors = 0
+        var silenced = false
+        var lastSilenceCheck = 0L
         try {
             while (running) {
                 val frame = ByteArray(FRAME_BYTES)
                 val n = record.read(frame, 0, FRAME_BYTES)
                 if (n <= 0) {
-                    if (n < 0 && ++readErrors % 20 == 1) Log.w(TAG, "AudioRecord.read returned $n (x$readErrors)")
+                    if (n < 0) {
+                        readErrors++
+                        if (readErrors % 20 == 1) Log.w(TAG, "AudioRecord.read returned $n (x$readErrors)")
+                        if (readErrors % 25 == 0) {
+                            // Dead recorder (audio server restarted, device routing changed): a dead
+                            // AudioRecord never recovers, so reopen the mic and carry on.
+                            Log.w(TAG, "Reopening the microphone after $readErrors read errors")
+                            runCatching { record.stop() }
+                            record.release()
+                            Thread.sleep(300)
+                            record = runCatching { openRecord() }.getOrElse {
+                                Log.e(TAG, "Mic reopen failed; retrying in 1s", it)
+                                Thread.sleep(1000)
+                                openRecord()
+                            }
+                        }
+                    }
                     Thread.sleep(20)
                     continue
                 }
+                readErrors = 0
+                val now = System.currentTimeMillis()
+                if (now - lastSilenceCheck > 1000) {
+                    lastSilenceCheck = now
+                    val s = isSilenced(record)
+                    if (s != silenced) {
+                        silenced = s
+                        Log.w(TAG, if (s) "Android is SILENCING our mic (another app took it)" else "Mic is live again")
+                        events?.onMicSilenced(s)
+                    }
+                }
                 val chunk = if (n == FRAME_BYTES) frame else frame.copyOf(n)
+                var closedByRecognizer = false
                 synchronized(lock) {
                     val out = sink
                     if (out != null) {
@@ -75,19 +126,23 @@ class MicPipe {
                             out.write(chunk)
                             bytesStreamed += n
                         } catch (e: IOException) {
-                            // Recognizer finished and closed its end: buffer until the next one attaches.
+                            // Recognizer stopped and closed its end: buffer until the next one attaches.
                             Log.i(TAG, "Pipe #$sinkId closed by recognizer (${e.message}); buffering")
                             runCatching { out.close() }
                             sink = null
                             remember(chunk)
+                            closedByRecognizer = true
                         }
                     } else {
                         remember(chunk)
                     }
                 }
+                // Outside the lock: the engine reacts by attaching a new pipe.
+                if (closedByRecognizer) events?.onPipeClosedByRecognizer()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Mic loop failed", e)
+            if (running) events?.onMicFailed(e)
         } finally {
             runCatching { record.stop() }
             record.release()

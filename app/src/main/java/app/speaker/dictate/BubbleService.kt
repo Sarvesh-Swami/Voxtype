@@ -18,7 +18,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
-import android.widget.TextView
+import android.widget.ImageView
 import android.widget.Toast
 import kotlin.math.hypot
 
@@ -33,8 +33,15 @@ class BubbleService : Service(), DictationEngine.Listener {
     companion object {
         const val ACTION_TOGGLE = "app.speaker.dictate.TOGGLE"
         const val ACTION_QUIT = "app.speaker.dictate.QUIT"
+        const val ACTION_REFRESH = "app.speaker.dictate.REFRESH"
         private const val CHANNEL_ID = "dictation"
         private const val NOTIF_ID = 1
+        private const val CUSTOM_QUIT = "quit"
+
+        /** Re-applies bubble/island settings if the service is running. */
+        fun refresh(ctx: Context) {
+            if (isRunning) ctx.startService(Intent(ctx, BubbleService::class.java).setAction(ACTION_REFRESH))
+        }
 
         @Volatile var isRunning = false
             private set
@@ -45,10 +52,12 @@ class BubbleService : Service(), DictationEngine.Listener {
     private lateinit var engine: DictationEngine
     private lateinit var prefs: Prefs
     private lateinit var wm: WindowManager
-    private var bubble: TextView? = null
+    private var bubble: ImageView? = null
     private var params: WindowManager.LayoutParams? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    private var failedToStart = false
 
     override fun onCreate() {
         super.onCreate()
@@ -58,6 +67,7 @@ class BubbleService : Service(), DictationEngine.Listener {
         engine = DictationEngine(this, this, "bubble")
         wm = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         createChannel()
+        if (prefs.islandMedia) startMediaSession()
         val notification = buildNotification()
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -67,9 +77,19 @@ class BubbleService : Service(), DictationEngine.Listener {
             }
             log("startForeground OK (microphone type)")
         } catch (e: Exception) {
-            android.util.Log.e("Speaker.bubble", "startForeground FAILED; mic may not work in other apps", e)
+            // Without foreground status Android kills the service (and the app) a few seconds later,
+            // and the mic would be blocked anyway. Stop cleanly and tell the user instead.
+            android.util.Log.e("Speaker.bubble", "startForeground FAILED; stopping the bubble", e)
+            toast("Speaker couldn't start the bubble (${e.javaClass.simpleName}). Open Speaker and try again.")
+            failedToStart = true
+            stopSelf()
+            return
         }
-        if (Settings.canDrawOverlays(this)) addBubble() else log("No overlay permission: bubble not shown")
+        when {
+            !prefs.showBubble -> log("Floating bubble turned off in settings")
+            Settings.canDrawOverlays(this) -> addBubble()
+            else -> log("No overlay permission: bubble not shown")
+        }
         TypeAccessibilityService.editorFocusListener = focusListener
         MicTileService.requestUpdate(this)
     }
@@ -97,10 +117,12 @@ class BubbleService : Service(), DictationEngine.Listener {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (failedToStart) return START_NOT_STICKY
         log("onStartCommand action=${intent?.action} flags=$flags startId=$startId state=${engine.state}")
         when (intent?.action) {
             ACTION_TOGGLE -> { log("Dictate/Stop via notification or tile (state=${engine.state})"); engine.toggle() }
             ACTION_QUIT -> { log("Quit via notification"); stopSelf() }
+            ACTION_REFRESH -> applySettings()
         }
         return START_NOT_STICKY
     }
@@ -112,8 +134,8 @@ class BubbleService : Service(), DictationEngine.Listener {
         isRunning = false
         currentState = DictationEngine.State.IDLE
         engine.release()
-        bubble?.let { runCatching { wm.removeView(it) }.onFailure { e -> log("removeView failed: $e") } }
-        bubble = null
+        stopMediaSession()
+        removeBubble()
         MicTileService.requestUpdate(this)
         super.onDestroy()
     }
@@ -164,8 +186,122 @@ class BubbleService : Service(), DictationEngine.Listener {
             toast("Dictation ($sessionChars chars) is on the clipboard. Long-press, then Paste")
         }
         renderBubble()
+        updateMediaState()
         getSystemService(NotificationManager::class.java).notify(NOTIF_ID, buildNotification())
         MicTileService.requestUpdate(this)
+    }
+
+    private fun applySettings() {
+        log("Applying settings: showBubble=${prefs.showBubble} islandMedia=${prefs.islandMedia}")
+        if (prefs.showBubble && bubble == null && Settings.canDrawOverlays(this)) addBubble()
+        if (!prefs.showBubble) removeBubble()
+        if (prefs.islandMedia && session == null) startMediaSession()
+        if (!prefs.islandMedia) stopMediaSession()
+        getSystemService(NotificationManager::class.java).notify(NOTIF_ID, buildNotification())
+    }
+
+    private fun removeBubble() {
+        pulse?.cancel(); pulse = null
+        bubble?.let { runCatching { wm.removeView(it) }.onFailure { e -> log("removeView failed: $e") } }
+        bubble = null
+    }
+
+    // ---- Island / media controls ----
+    // realme (ColorOS) shows its island ("Fluid Cloud" / Live Alerts) for apps with an active media
+    // session, which is what YouTube and music players use. Dictation maps onto it as
+    // play = start dictating, pause = stop, so it can be started from the island.
+
+    private var session: android.media.session.MediaSession? = null
+
+    private fun startMediaSession() {
+        val s = android.media.session.MediaSession(this, "SpeakerDictation")
+        s.setCallback(object : android.media.session.MediaSession.Callback() {
+            override fun onPlay() {
+                log("Island/media: PLAY pressed (state=${engine.state})")
+                if (engine.state == DictationEngine.State.IDLE) engine.toggle()
+            }
+            override fun onPause() {
+                log("Island/media: PAUSE pressed (state=${engine.state})")
+                engine.stopIfActive("island pause")
+            }
+            override fun onStop() {
+                log("Island/media: STOP pressed (state=${engine.state})")
+                engine.stopIfActive("island stop")
+            }
+            // Headphone / Bluetooth play-pause buttons go to the most recent media session. Never let
+            // one of those turn the microphone on: only the on-screen island/media controls may.
+            override fun onMediaButtonEvent(mediaButtonIntent: Intent): Boolean {
+                log("Island/media: ignored a hardware media button (it must not start the microphone)")
+                return true
+            }
+
+            override fun onCustomAction(action: String, extras: android.os.Bundle?) {
+                log("Island/media: custom action $action")
+                if (action == CUSTOM_QUIT) stopSelf()
+            }
+        })
+        s.setSessionActivity(PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
+        session = s
+        updateMediaState()
+        s.isActive = true
+        log("Island/media session started")
+    }
+
+    private fun stopMediaSession() {
+        session?.let {
+            runCatching { it.isActive = false; it.release() }
+            log("Island/media session stopped")
+        }
+        session = null
+    }
+
+    private var artwork: android.graphics.Bitmap? = null
+
+    private fun artwork(): android.graphics.Bitmap = artwork ?: run {
+        val size = dp(96)
+        val bmp = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+        val c = android.graphics.Canvas(bmp)
+        getDrawable(R.drawable.ic_launcher_bg)?.apply { setBounds(0, 0, size, size); draw(c) }
+        // The adaptive-icon foreground is drawn on a 108dp canvas with the art in the middle 72dp.
+        val pad = -size / 6
+        getDrawable(R.drawable.ic_launcher_fg)?.apply { setBounds(pad, pad, size - pad, size - pad); draw(c) }
+        bmp.also { artwork = it }
+    }
+
+    private fun updateMediaState() {
+        val s = session ?: return
+        val recording = currentState != DictationEngine.State.IDLE
+        val subtitle = when (currentState) {
+            DictationEngine.State.IDLE -> "Tap ▶ to dictate"
+            DictationEngine.State.RECORDING -> "Listening… tap ⏸ to stop"
+            DictationEngine.State.WORKING -> "Finishing…"
+        }
+        s.setMetadata(
+            android.media.MediaMetadata.Builder()
+                .putString(android.media.MediaMetadata.METADATA_KEY_TITLE, "Speaker")
+                .putString(android.media.MediaMetadata.METADATA_KEY_ARTIST, subtitle)
+                .putBitmap(android.media.MediaMetadata.METADATA_KEY_ART, artwork())
+                .build()
+        )
+        val ps = android.media.session.PlaybackState.Builder()
+            .setActions(
+                android.media.session.PlaybackState.ACTION_PLAY or
+                    android.media.session.PlaybackState.ACTION_PAUSE or
+                    android.media.session.PlaybackState.ACTION_PLAY_PAUSE or
+                    android.media.session.PlaybackState.ACTION_STOP
+            )
+            .setState(
+                if (recording) android.media.session.PlaybackState.STATE_PLAYING
+                else android.media.session.PlaybackState.STATE_PAUSED,
+                android.media.session.PlaybackState.PLAYBACK_POSITION_UNKNOWN, if (recording) 1f else 0f
+            )
+            .addCustomAction(
+                android.media.session.PlaybackState.CustomAction.Builder(CUSTOM_QUIT, "Quit", R.drawable.ic_clear).build()
+            )
+            .build()
+        s.setPlaybackState(ps)
+        log("Island/media state -> ${if (recording) "PLAYING" else "PAUSED"} (${currentState})")
     }
 
     override fun onText(text: String, isFinal: Boolean, sessionText: String) {
@@ -185,11 +321,12 @@ class BubbleService : Service(), DictationEngine.Listener {
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     private fun addBubble() {
-        val size = dp(56)
-        val view = TextView(this).apply {
-            gravity = Gravity.CENTER
-            textSize = 22f
+        val size = dp(58)
+        val view = ImageView(this).apply {
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setPadding(dp(16), dp(16), dp(16), dp(16))
             elevation = dp(6).toFloat()
+            contentDescription = "Speaker dictation"
         }
         val lp = WindowManager.LayoutParams(
             size, size,
@@ -202,9 +339,21 @@ class BubbleService : Service(), DictationEngine.Listener {
             x = prefs.bubbleX
             y = prefs.bubbleY
         }
+        val (sw, sh) = screenSize()
+        val savedX = lp.x; val savedY = lp.y
+        clampOnScreen(lp, size, snap = false)
+        if (lp.x != savedX || lp.y != savedY) {
+            log("Saved bubble position x=$savedX y=$savedY was off-screen (screen ${sw}x$sh); moved to x=${lp.x} y=${lp.y}")
+            prefs.bubbleX = lp.x; prefs.bubbleY = lp.y
+        }
         view.setOnTouchListener(BubbleTouch(lp))
+        // Taps (and TalkBack double-taps, which never reach onTouch) arrive here.
+        view.setOnClickListener {
+            log("Bubble tap (state=${engine.state})")
+            engine.toggle()
+        }
         wm.addView(view, lp)
-        log("Bubble overlay added at x=${lp.x} y=${lp.y} size=${size}px")
+        log("Bubble overlay added at x=${lp.x} y=${lp.y} size=${size}px screen=${sw}x$sh")
         bubble = view
         params = lp
         renderBubble()
@@ -212,24 +361,26 @@ class BubbleService : Service(), DictationEngine.Listener {
 
     private fun renderBubble() {
         val b = bubble ?: return
-        val (label, color) = when (currentState) {
-            DictationEngine.State.IDLE -> "🎤" to 0xEE3355FF.toInt()
-            DictationEngine.State.RECORDING -> "⏹" to 0xEEE53935.toInt()
-            DictationEngine.State.WORKING -> "…" to 0xEEFFA000.toInt()
+        val (icon, bg) = when (currentState) {
+            DictationEngine.State.IDLE -> R.drawable.ic_mic to R.drawable.bg_mic_idle
+            DictationEngine.State.RECORDING -> R.drawable.ic_stop to R.drawable.bg_mic_recording
+            DictationEngine.State.WORKING -> R.drawable.ic_dots to R.drawable.bg_mic_working
         }
-        b.text = label
-        b.background = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(color)
-            setStroke(dp(2), 0x55FFFFFF)
+        b.setImageResource(icon)
+        b.setBackgroundResource(bg)
+        b.contentDescription = when (currentState) {
+            DictationEngine.State.IDLE -> "Start dictation"
+            DictationEngine.State.RECORDING -> "Stop dictation"
+            DictationEngine.State.WORKING -> "Finishing dictation"
         }
         // Pulse for the whole time we're listening, so the bubble (not sounds) shows it's still on.
+        // Scales inward so it never gets clipped by the overlay window's edges.
         if (currentState == DictationEngine.State.RECORDING) {
             if (pulse == null) {
                 pulse = android.animation.ObjectAnimator.ofPropertyValuesHolder(
                     b,
-                    android.animation.PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.15f),
-                    android.animation.PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.15f),
+                    android.animation.PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 0.86f),
+                    android.animation.PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 0.86f),
                 ).apply {
                     duration = 700
                     repeatCount = android.animation.ValueAnimator.INFINITE
@@ -247,8 +398,35 @@ class BubbleService : Service(), DictationEngine.Listener {
 
     private var pulse: android.animation.ObjectAnimator? = null
 
+    private fun screenSize(): Pair<Int, Int> =
+        if (android.os.Build.VERSION.SDK_INT >= 30) {
+            val b = wm.currentWindowMetrics.bounds
+            b.width() to b.height()
+        } else {
+            resources.displayMetrics.let { it.widthPixels to it.heightPixels }
+        }
+
+    /**
+     * Keeps the whole bubble on screen (it used to be draggable past the edge, where it was
+     * mostly hidden and the system back-gesture zone swallowed taps). With [snap], it also
+     * docks to the nearer side, a little away from the edge so taps aren't read as "back".
+     */
+    private fun clampOnScreen(lp: WindowManager.LayoutParams, size: Int, snap: Boolean) {
+        val (sw, sh) = screenSize()
+        val margin = dp(12)
+        val minX = margin
+        val maxX = (sw - size - margin).coerceAtLeast(minX)
+        val minY = dp(48)
+        val maxY = (sh - size - dp(72)).coerceAtLeast(minY)
+        lp.x = if (snap) { if (lp.x + size / 2 < sw / 2) minX else maxX } else lp.x.coerceIn(minX, maxX)
+        lp.y = lp.y.coerceIn(minY, maxY)
+    }
+
     private inner class BubbleTouch(private val lp: WindowManager.LayoutParams) : View.OnTouchListener {
-        private val slop = ViewConfiguration.get(this@BubbleService).scaledTouchSlop
+        // Generous threshold: a slightly shaky finger on a small floating button should still
+        // count as a tap, not a drag (two taps were lost as tiny "drags" in v0.8.0).
+        private val slop = ViewConfiguration.get(this@BubbleService).scaledTouchSlop * 2
+        private var downTime = 0L
         private var startX = 0
         private var startY = 0
         private var downX = 0f
@@ -268,6 +446,7 @@ class BubbleService : Service(), DictationEngine.Listener {
                     startX = lp.x; startY = lp.y
                     downX = e.rawX; downY = e.rawY
                     dragging = false; longPressed = false
+                    downTime = e.eventTime
                     v.postDelayed(longPress, ViewConfiguration.getLongPressTimeout().toLong())
                 }
                 MotionEvent.ACTION_MOVE -> {
@@ -285,18 +464,33 @@ class BubbleService : Service(), DictationEngine.Listener {
                 }
                 MotionEvent.ACTION_UP -> {
                     v.removeCallbacks(longPress)
+                    val moved = hypot(e.rawX - downX, e.rawY - downY)
+                    val heldMs = e.eventTime - downTime
+                    // A quick touch that barely moved is a tap, even if it crossed the drag threshold.
+                    if (dragging && heldMs < 250 && moved < slop * 3) {
+                        log("Short touch (${heldMs}ms, moved ${moved.toInt()}px) treated as a tap, not a drag")
+                        lp.x = startX; lp.y = startY
+                        wm.updateViewLayout(v, lp)
+                        dragging = false
+                    }
                     when {
                         dragging -> {
+                            val rawX = lp.x; val rawY = lp.y
+                            clampOnScreen(lp, v.width, snap = true)
+                            wm.updateViewLayout(v, lp)
                             prefs.bubbleX = lp.x; prefs.bubbleY = lp.y
-                            log("Bubble dragged to x=${lp.x} y=${lp.y}")
+                            log("Bubble dragged to x=$rawX y=$rawY -> docked at x=${lp.x} y=${lp.y} (${heldMs}ms)")
                         }
                         !longPressed -> {
-                            log("Bubble tap (state=${engine.state})")
-                            engine.toggle()
+                            log("Bubble touch: ${heldMs}ms, moved ${moved.toInt()}px -> click")
+                            v.performClick()
                         }
                     }
                 }
-                MotionEvent.ACTION_CANCEL -> v.removeCallbacks(longPress)
+                MotionEvent.ACTION_CANCEL -> {
+                    v.removeCallbacks(longPress)
+                    log("Bubble touch CANCELLED by the system (edge/back gesture?) at x=${lp.x} y=${lp.y}")
+                }
             }
             return true
         }
@@ -333,16 +527,31 @@ class BubbleService : Service(), DictationEngine.Listener {
             DictationEngine.State.RECORDING -> "Listening continuously. Tap Stop when done" to "⏹ Stop"
             DictationEngine.State.WORKING -> "Finishing last phrase…" to "…"
         }
-        return Notification.Builder(this, CHANNEL_ID)
+        val builder = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_mic)
             .setContentTitle("Speaker")
             .setContentText(text)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(open)
-            .addAction(Notification.Action.Builder(null, action, toggle).build())
-            .addAction(Notification.Action.Builder(null, "Quit", quit).build())
-            .build()
+        val s = session
+        if (s != null) {
+            // Media-style notification bound to the session: this is what the island and the
+            // media-controls panel pick up (same mechanism as YouTube / music apps).
+            val icon = if (currentState == DictationEngine.State.IDLE) R.drawable.ic_mic else R.drawable.ic_stop
+            builder
+                .setLargeIcon(artwork())
+                .setCategory(Notification.CATEGORY_TRANSPORT)
+                .setVisibility(Notification.VISIBILITY_PUBLIC)
+                .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(this, icon), action, toggle).build())
+                .addAction(Notification.Action.Builder(android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_clear), "Quit", quit).build())
+                .setStyle(Notification.MediaStyle().setMediaSession(s.sessionToken).setShowActionsInCompactView(0))
+        } else {
+            builder
+                .addAction(Notification.Action.Builder(null, action, toggle).build())
+                .addAction(Notification.Action.Builder(null, "Quit", quit).build())
+        }
+        return builder.build()
     }
 
     private var lastToast = ""

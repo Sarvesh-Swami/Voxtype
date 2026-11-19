@@ -11,18 +11,18 @@ import java.net.URL
 object Http {
     private const val TAG = "Speaker.http"
 
-    private fun open(url: String, headers: Map<String, String>): HttpURLConnection =
+    private fun open(url: String, headers: Map<String, String>, readTimeoutMs: Int = 120_000): HttpURLConnection =
         (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "POST"
             doOutput = true
             connectTimeout = 15_000
-            readTimeout = 120_000
+            readTimeout = readTimeoutMs
             headers.forEach { (k, v) -> setRequestProperty(k, v) }
         }
 
-    fun postJson(url: String, headers: Map<String, String>, body: JSONObject): JSONObject {
+    fun postJson(url: String, headers: Map<String, String>, body: JSONObject, readTimeoutMs: Int = 120_000): JSONObject {
         val bytes = body.toString().toByteArray()
-        val conn = open(url, headers)
+        val conn = open(url, headers, readTimeoutMs)
         conn.setRequestProperty("Content-Type", "application/json")
         conn.setFixedLengthStreamingMode(bytes.size)
         conn.outputStream.use { it.write(bytes) }

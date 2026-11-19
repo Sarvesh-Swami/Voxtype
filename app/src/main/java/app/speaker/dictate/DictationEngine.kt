@@ -55,6 +55,16 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
     @Volatile private var phrasesDone = 0
     @Volatile private var phraseErrors = 0
     @Volatile private var polishOff = false
+    @Volatile private var polishContext = "" // session text so far, sent to the LLM as context
+
+    // AI rewrite for the built-in recognizer: a settled phrase is sent to the LLM and the raw words
+    // on screen are replaced with the rewritten text. While that's in flight, the next phrase's
+    // words are held (not typed) so the replacement can't land in the middle of them.
+    private var aiBusy = false
+    private val heldFinals = ArrayDeque<Pair<String, String>>()
+    private var heldPartial: String? = null
+    private var finishWhenAiDone = false
+    private val aiLive get() = prefs.polishEnabled && !polishOff && SttProvider.from(prefs.sttProvider) == SttProvider.BUILTIN
 
     // Current (unsettled) phrase
     private var phrasePrefix: String? = null
@@ -100,6 +110,54 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
     private var maxRmsSinceLog = -100f
     private var partialCount = 0
 
+    // Recognizer liveness: a working recognizer reports the mic level (onRmsChanged) many times a
+    // second, pauses included. If that stops while we think it's listening, it died silently.
+    private var lastRmsAt = 0L
+    private var rmsSeenThisListen = false
+    private var micSilencedNotified = false
+
+    // After release() nothing may run: late callbacks from worker threads or the mic thread are dropped.
+    @Volatile private var released = false
+
+    /** Runs [block] on the phrase worker (in order), unless the engine was released. */
+    private fun onWorker(block: () -> Unit) {
+        if (released) return
+        runCatching { worker.execute(block) }.onFailure { Log.w(tag, "Worker task dropped: $it") }
+    }
+
+    /** Posts to the main thread, unless the engine was released. */
+    private fun post(block: () -> Unit) {
+        main.post { if (!released) block() }
+    }
+
+    private val micEvents = object : MicPipe.Events {
+        override fun onPipeClosedByRecognizer() = post {
+            if (!builtinActive || state != State.RECORDING || !usingAudioSource) return@post
+            Log.w(tag, "Recognizer closed the audio stream without telling us; restarting it now")
+            builtinListening = false
+            settleLivePhrase("recognizer closed the audio stream")
+            restartBuiltin(100, "audio stream closed by recognizer", recreate = true)
+        }
+
+        override fun onMicSilenced(silenced: Boolean) = post {
+            if (state == State.IDLE) return@post
+            if (silenced && !micSilencedNotified) {
+                micSilencedNotified = true
+                listener.onError("Another app is using the microphone. Speaker will hear you again when it lets go.")
+            }
+            if (!silenced) micSilencedNotified = false
+        }
+
+        override fun onMicFailed(error: Exception) = post {
+            if (state == State.IDLE) return@post
+            Log.e(tag, "Microphone failed; ending the session", error)
+            builtinActive = false
+            listener.onError("The microphone stopped working (${error.message}). Tap to try again.")
+            stopMicPipe("mic failed")
+            finishAfterQueue()
+        }
+    }
+
     var state = State.IDLE
         private set
 
@@ -119,6 +177,7 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
 
     fun release() {
         Log.i(tag, "release() state=$state session=$session")
+        released = true
         recorder?.let { r -> Thread { runCatching { r.stop() } }.start() }
         recorder = null
         builtinActive = false
@@ -154,12 +213,22 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         }
         session++
         sessionStartedAt = SystemClock.elapsedRealtime()
+        micSilencedNotified = false
+        // Recorded phrases are deleted after upload; this clears any left behind by a crash or kill.
+        if (state == State.IDLE) runCatching {
+            ctx.cacheDir.listFiles { f -> f.name.startsWith("phrase-") && f.name.endsWith(".wav") }?.forEach { it.delete() }
+        }
         sessionText.clear()
         phrasePrefix = null
         phraseText = ""
         phrasesDone = 0
         phraseErrors = 0
         polishOff = false
+        polishContext = ""
+        aiBusy = false
+        heldFinals.clear()
+        heldPartial = null
+        finishWhenAiDone = false
         builtinErrorStreak = 0
         builtinRestarts = 0
         partialCount = 0
@@ -171,14 +240,14 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
             "fieldFocused=${TypeAccessibilityService.instance?.editorActive()} sdk=${Build.VERSION.SDK_INT}")
         try {
             if (provider == SttProvider.BUILTIN) {
-                if (prefs.polishEnabled) Log.i(tag, "Polish is skipped for the built-in recognizer (live text can't be rewritten)")
+                if (prefs.polishEnabled) Log.i(tag, "AI rewrite ON for the built-in recognizer: each settled phrase is replaced with the LLM's version")
                 builtinActive = true
                 listenOnce("session start", muteBeep = false)
             } else {
                 val sid = session
                 val r = SegmentingRecorder(ctx.cacheDir) { file, info ->
                     Log.i(tag, "Queueing phrase #${info.index} for transcription")
-                    worker.execute { transcribePhrase(sid, file, info) }
+                    onWorker { transcribePhrase(sid, file, info) }
                 }
                 r.start()
                 recorder = r
@@ -199,12 +268,12 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         val r = recorder
         if (r != null) {
             recorder = null
-            worker.execute {
+            onWorker {
                 runCatching { r.stop() }.onFailure { e ->
                     Log.e(tag, "Recorder stop failed", e)
-                    main.post { listener.onError("Recording error: ${e.message}") }
+                    post { listener.onError("Recording error: ${e.message}") }
                 }
-                worker.execute { main.post { finishSession() } } // after the last phrase
+                onWorker { post { finishSession() } } // after the last phrase
             }
             return
         }
@@ -224,11 +293,17 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         }
     }
 
-    private fun finishAfterQueue() = worker.execute { main.post { finishSession() } }
+    private fun finishAfterQueue() = onWorker { post { finishSession() } }
 
     private fun finishSession() {
         if (state == State.IDLE) return
         settleLivePhrase("session end")
+        if (aiBusy || heldFinals.isNotEmpty()) {
+            heldPartial?.let { heldFinals.addLast(it to "session end (held words)"); heldPartial = null }
+            Log.i(tag, "Session end waits for the AI rewrite in flight (held finals=${heldFinals.size})")
+            finishWhenAiDone = true
+            return
+        }
         unmute()
         recognizer?.destroy() // a fresh recognizer per session avoids stale state
         recognizer = null
@@ -251,7 +326,7 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
                 runCatching { r.stop() }
                 recorder = runCatching {
                     SegmentingRecorder(ctx.cacheDir) { file, info ->
-                        worker.execute { transcribePhrase(sid, file, info) }
+                        onWorker { transcribePhrase(sid, file, info) }
                     }.also { it.start() }
                 }.getOrElse { e ->
                     Log.e(tag, "Could not restart recorder; will retry next heartbeat", e)
@@ -276,12 +351,13 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
     private fun emitPartial(raw: String) {
         val t = raw.trim()
         if (t.isEmpty()) return
+        if (aiBusy) { heldPartial = t; return }
         val prefix = phrasePrefix ?: spaceBefore(t).also { phrasePrefix = it }
         val full = prefix + t
         if (full == phraseText) return
         phraseText = full
         partialCount++
-        Log.d(tag, "Live: \"${full.takeLast(80)}\" (${full.length} chars)")
+        Log.d(tag, "Live: ${spoken(full.takeLast(80))} (${full.length} chars)")
         listener.onText(full, false, sessionText.toString() + full)
     }
 
@@ -289,24 +365,40 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
     private fun emitFinal(raw: String, what: String) {
         val t = raw.trim()
         if (t.isEmpty()) {
+            if (aiBusy) {
+                heldPartial?.let { heldFinals.addLast(it to "$what (held words)"); heldPartial = null }
+                return
+            }
             if (phraseText.isNotEmpty()) {
                 Log.i(tag, "Final for $what is empty; keeping the live text that was already typed")
                 settleLivePhrase(what)
             }
             return
         }
+        if (aiBusy) {
+            heldFinals.addLast(t to what)
+            heldPartial = null
+            Log.i(tag, "AI rewrite busy: holding final ($what) until it's done (held=${heldFinals.size})")
+            return
+        }
+        if (aiLive) { aiRewrite(t, what); return }
         val full = (phrasePrefix ?: spaceBefore(t)) + t
         sessionText.append(full)
+        polishContext = sessionText.toString()
         phrasesDone++
         phrasePrefix = null
         phraseText = ""
-        Log.i(tag, "Final ($what): \"${full.take(200)}\" (session ${sessionText.length} chars)")
+        Log.i(tag, "Final ($what): ${spoken(full)} (session ${sessionText.length} chars)")
         listener.onText(full, true, sessionText.toString())
     }
 
     /** Treats the live text currently on screen as final (used when the recognizer gives no final). */
     private fun settleLivePhrase(why: String) {
         if (phraseText.isEmpty()) return
+        if (aiLive && !aiBusy) {
+            val raw = phraseText.removePrefix(phrasePrefix.orEmpty()).trim()
+            if (raw.isNotEmpty()) { aiRewrite(raw, why); return }
+        }
         val full = phraseText
         sessionText.append(full)
         phrasesDone++
@@ -314,6 +406,47 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         phraseText = ""
         Log.i(tag, "Settled live text as final ($why): ${full.length} chars")
         listener.onText(full, true, sessionText.toString())
+    }
+
+    /**
+     * Built-in + AI: shows the raw words right away, asks the LLM for the rewrite, then swaps the
+     * raw words on screen for the rewritten text (LiveTyper replaces the live phrase with the final).
+     */
+    private fun aiRewrite(raw: String, what: String) {
+        val prefix = phrasePrefix ?: spaceBefore(raw)
+        val live = prefix + raw
+        if (live != phraseText) {
+            phraseText = live
+            listener.onText(live, false, sessionText.toString() + live)
+        }
+        // LiveTyper remembers what's on screen; the engine's phrase buffer is free for the next phrase.
+        phrasePrefix = null
+        phraseText = ""
+        aiBusy = true
+        val sid = session
+        polishContext = sessionText.toString()
+        Log.i(tag, "AI rewrite ($what): sending ${raw.length} chars")
+        onWorker {
+            val (text, note) = maybePolish(raw)
+            post {
+                aiBusy = false
+                if (sid != session) return@post
+                val full = prefix + text
+                sessionText.append(full)
+                phrasesDone++
+                Log.i(tag, "Final (AI, $what): ${spoken(full)} (raw was ${spoken(raw)})")
+                listener.onText(full, true, sessionText.toString())
+                note?.let { listener.onError(it) }
+                when {
+                    heldFinals.isNotEmpty() -> heldFinals.removeFirst().let { (r, w) -> emitFinal(r, w) }
+                    heldPartial != null -> heldPartial?.also { heldPartial = null }?.let { emitPartial(it) }
+                }
+                if (finishWhenAiDone && !aiBusy && heldFinals.isEmpty()) {
+                    finishWhenAiDone = false
+                    finishSession()
+                }
+            }
+        }
     }
 
     // ---------------- API providers (recorded phrases) ----------------
@@ -326,13 +459,13 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
             Log.i(tag, "Phrase #${info.index}: sending ${file.length()} bytes (${info.durationMs} ms) to ${provider.id}/${prefs.sttModel(provider)}")
             val raw = Transcriber(prefs).transcribe(file).trim()
             Log.i(tag, "Phrase #${info.index}: ${provider.id} returned ${raw.length} chars in " +
-                "${SystemClock.elapsedRealtime() - t0} ms: \"${raw.take(200)}\"")
+                "${SystemClock.elapsedRealtime() - t0} ms: ${spoken(raw)}")
             if (raw.lowercase() in HALLUCINATIONS && info.speechMs < 1500) {
-                Log.i(tag, "Phrase #${info.index}: dropped likely hallucination \"$raw\"")
+                Log.i(tag, "Phrase #${info.index}: dropped likely hallucination ${spoken(raw)}")
                 return
             }
             val (text, note) = maybePolish(raw)
-            main.post {
+            post {
                 if (sid != session) return@post
                 emitFinal(text, "phrase #${info.index}")
                 note?.let { listener.onError(it) }
@@ -341,7 +474,7 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
             phraseErrors++
             Log.e(tag, "Phrase #${info.index} FAILED (${provider.id}, ${info.durationMs} ms, ${file.length()} bytes)", e)
             val authProblem = e is IOException && (e.message?.startsWith("HTTP 401") == true || e.message?.startsWith("HTTP 403") == true)
-            main.post {
+            post {
                 listener.onError("Transcription failed (${provider.label}): ${e.message}")
                 if (authProblem && state == State.RECORDING && sid == session) {
                     Log.w(tag, "Stopping session: API key rejected")
@@ -360,8 +493,8 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         val llm = LlmProvider.from(prefs.llmProvider)
         return try {
             val t0 = SystemClock.elapsedRealtime()
-            val polished = Transcriber(prefs).polish(raw).trim().ifEmpty { raw }
-            Log.i(tag, "Polished with ${llm.id} in ${SystemClock.elapsedRealtime() - t0} ms: \"${polished.take(200)}\"")
+            val polished = Transcriber(prefs).polish(raw, polishContext).trim().ifEmpty { raw }
+            Log.i(tag, "Polished with ${llm.id} in ${SystemClock.elapsedRealtime() - t0} ms: ${spoken(polished)}")
             polished to null
         } catch (e: Exception) {
             Log.e(tag, "Polish failed (${llm.id}); using raw text", e)
@@ -425,7 +558,7 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         val segmented = Build.VERSION.SDK_INT >= 33 && (usingAudioSource || segmentedSupported != false)
         var audioPfd: android.os.ParcelFileDescriptor? = null
         if (usingAudioSource) {
-            val pipe = micPipe ?: MicPipe().also { it.start(); micPipe = it }
+            val pipe = micPipe ?: MicPipe(micEvents).also { it.start(); micPipe = it }
             audioPfd = pipe.attachNew()
         } else if (micPipe != null) {
             stopMicPipe("switching to recognizer-owned mic")
@@ -455,6 +588,7 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         if (muteBeep && segmentedSupported != true) muteSession()
         builtinListening = true
         lastBuiltinEventAt = SystemClock.elapsedRealtime()
+        rmsSeenThisListen = false
         Log.i(tag, "Built-in: startListening ($why) restart #$builtinRestarts onDevice=$usingOnDevice " +
             "audioSource=$usingAudioSource lang=${languageFor() ?: "default"} segmented=$segmented muted=${mutedStreams.isNotEmpty()}")
         sr.startListening(intent)
@@ -488,23 +622,41 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         }, delayMs)
     }
 
+    // One watchdog loop per engine (re-arming replaces it; restarts used to stack extra loops).
+    private val watchdog = Runnable { watchdogTick() }
+
+    @Suppress("UNUSED_PARAMETER")
     private fun scheduleWatchdog(sid: Int) {
-        main.postDelayed({
-            if (sid != session || !builtinActive || state != State.RECORDING) return@postDelayed
-            val idle = SystemClock.elapsedRealtime() - lastBuiltinEventAt
-            when {
-                !builtinListening && !restartPending -> {
-                    Log.w(tag, "WATCHDOG: built-in not listening and no restart pending; restarting")
-                    restartBuiltin(0, "watchdog: not listening", recreate = true)
-                }
-                builtinListening && idle > 90_000 -> {
-                    Log.w(tag, "WATCHDOG: no recognizer callback for ${idle / 1000}s; recreating")
-                    builtinListening = false
-                    restartBuiltin(0, "watchdog: stuck", recreate = true)
-                }
-                else -> scheduleWatchdog(sid)
+        main.removeCallbacks(watchdog)
+        main.postDelayed(watchdog, 3000)
+    }
+
+    private fun watchdogTick() {
+        if (released || !builtinActive || state != State.RECORDING) return
+        val now = SystemClock.elapsedRealtime()
+        val idle = now - lastBuiltinEventAt
+        val rmsSilentFor = now - lastRmsAt
+        when {
+            !builtinListening && !restartPending -> {
+                Log.w(tag, "WATCHDOG: built-in not listening and no restart pending; restarting")
+                restartBuiltin(0, "watchdog: not listening", recreate = true)
             }
-        }, 3000)
+            // A live recognizer reports mic levels continuously (also during pauses). Silence from it
+            // for 6 s means it stopped processing without an error: replace it right away instead
+            // of leaving the bubble "listening" to nothing.
+            usingAudioSource && builtinListening && !restartPending && rmsSeenThisListen && rmsSilentFor > 6_000 -> {
+                Log.w(tag, "WATCHDOG: recognizer stopped reporting audio for ${rmsSilentFor / 1000}s; recreating")
+                builtinListening = false
+                settleLivePhrase("recognizer stalled")
+                restartBuiltin(0, "watchdog: recognizer stalled", recreate = true)
+            }
+            builtinListening && !restartPending && idle > 90_000 -> {
+                Log.w(tag, "WATCHDOG: no recognizer callback for ${idle / 1000}s; recreating")
+                builtinListening = false
+                restartBuiltin(0, "watchdog: stuck", recreate = true)
+            }
+            else -> scheduleWatchdog(session)
+        }
     }
 
     // Mute the recognizer's restart beeps for the rest of the session (only streams that weren't already
@@ -548,6 +700,8 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         override fun onRmsChanged(rmsdB: Float) {
             if (rmsdB > maxRmsSinceLog) maxRmsSinceLog = rmsdB
             val now = SystemClock.elapsedRealtime()
+            lastRmsAt = now
+            rmsSeenThisListen = true
             if (now - lastRmsLogAt > 5000) {
                 Log.d(tag, "Built-in: mic level max $maxRmsSinceLog dB over last 5s")
                 lastRmsLogAt = now
@@ -572,7 +726,7 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
             gotResultFromRecognizer = true
             builtinErrorStreak = 0
             val text = segmentResults.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
-            Log.i(tag, "Built-in: onSegmentResults \"${text.take(200)}\"")
+            Log.i(tag, "Built-in: onSegmentResults ${spoken(text)}")
             emitFinal(text, "segment")
         }
 
@@ -597,7 +751,7 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
             }
             val all = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty()
             val text = all.firstOrNull().orEmpty()
-            Log.i(tag, "Built-in: onResults ${all.size} alternative(s), best=\"${text.take(200)}\" (active=$builtinActive)")
+            Log.i(tag, "Built-in: onResults ${all.size} alternative(s), best=${spoken(text)} (active=$builtinActive)")
             emitFinal(text, "utterance")
             if (builtinActive) restartBuiltin(50, "after result") else finishAfterQueue()
         }
