@@ -3,6 +3,16 @@
 Android dictation app ("Speaker", package `app.speaker.dictate`). User-facing overview: `README.md`.
 Play Store release steps and policy notes: `docs/play-store-release-checklist.md`.
 
+## Branches
+- **dev** (this branch): day-to-day work and device testing. Has the ngrok log server, the in-app Update
+  button, the sideload signing key setup and both build flavors below.
+- **Main**: the Google Play version only. It has no flavors, no `tools/`, no `dist/`, no updater and no remote
+  logging; its README and docs are written for end users. Bring finished work over by merging `dev` into
+  `Main`. Git remembers the cleanup commit, so only new dev-only changes need resolving. When files conflict,
+  keep Main's versions of `README.md`, this file, `app/build.gradle.kts`, `gradle.properties`, `.gitignore`
+  and `RemoteLog.kt`. Rebuild with `gradlew bundleRelease` and check the release has no `ngrok`/`PackageInstaller`.
+- Commit locally only; the user pushes from their own account.
+
 ## Two flavors (app/build.gradle.kts)
 - **play**: the Google Play build. No server of ours, no self-update, no remote logging, no
   REQUEST_INSTALL_PACKAGES. `BuildConfig.DEV_TOOLS = false`. Build: `gradlew bundlePlayRelease`
