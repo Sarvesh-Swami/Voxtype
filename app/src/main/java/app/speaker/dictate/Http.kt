@@ -29,6 +29,16 @@ object Http {
         return read(conn)
     }
 
+    fun getJson(url: String, headers: Map<String, String>): JSONObject {
+        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            connectTimeout = 15_000
+            readTimeout = 20_000
+            headers.forEach { (k, v) -> setRequestProperty(k, v) }
+        }
+        return read(conn)
+    }
+
     fun postFile(url: String, headers: Map<String, String>, contentType: String, file: File): JSONObject {
         val conn = open(url, headers)
         conn.setRequestProperty("Content-Type", contentType)
@@ -72,13 +82,13 @@ object Http {
             val body = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
             val ms = System.currentTimeMillis() - started
             if (code !in 200..299) {
-                Log.w(TAG, "POST $where -> HTTP $code in ${ms}ms, body: ${body.take(1000)}")
+                Log.w(TAG, "${conn.requestMethod} $where -> HTTP $code in ${ms}ms, body: ${body.take(1000)}")
                 throw IOException("HTTP $code: ${errorMessage(body)}")
             }
-            Log.i(TAG, "POST $where -> HTTP $code in ${ms}ms (${body.length} bytes)")
+            Log.i(TAG, "${conn.requestMethod} $where -> HTTP $code in ${ms}ms (${body.length} bytes)")
             return JSONObject(body)
         } catch (e: IOException) {
-            if (e.message?.startsWith("HTTP ") != true) Log.w(TAG, "POST $where failed: $e")
+            if (e.message?.startsWith("HTTP ") != true) Log.w(TAG, "${conn.requestMethod} $where failed: $e")
             throw e
         } finally {
             conn.disconnect()

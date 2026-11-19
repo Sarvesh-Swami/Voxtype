@@ -268,10 +268,31 @@
                         style="@style/Label"
                         android:text="MODEL" />
 
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <Spinner
+                            android:id="@+id/spnSttModel"
+                            style="@style/SpinnerField"
+                            android:layout_width="0dp"
+                            android:layout_weight="1" />
+
+                        <Button
+                            android:id="@+id/btnSttModels"
+                            style="@style/ButtonTonal"
+                            android:layout_marginStart="8dp"
+                            android:contentDescription="Refresh the model list from the provider"
+                            android:text="Refresh" />
+                    </LinearLayout>
+
                     <EditText
                         android:id="@+id/edtSttModel"
                         style="@style/Field"
-                        android:hint="Model name"
+                        android:layout_marginTop="8dp"
+                        android:hint="Type a model name"
                         android:inputType="text" />
                 </LinearLayout>
 
@@ -336,10 +357,31 @@
                         style="@style/Label"
                         android:text="MODEL" />
 
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <Spinner
+                            android:id="@+id/spnLlmModel"
+                            style="@style/SpinnerField"
+                            android:layout_width="0dp"
+                            android:layout_weight="1" />
+
+                        <Button
+                            android:id="@+id/btnLlmModels"
+                            style="@style/ButtonTonal"
+                            android:layout_marginStart="8dp"
+                            android:contentDescription="Refresh the model list from the provider"
+                            android:text="Refresh" />
+                    </LinearLayout>
+
                     <EditText
                         android:id="@+id/edtLlmModel"
                         style="@style/Field"
-                        android:hint="Model name"
+                        android:layout_marginTop="8dp"
+                        android:hint="Type a model name"
                         android:inputType="text" />
 
                     <TextView
