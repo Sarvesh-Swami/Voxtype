@@ -67,6 +67,9 @@ Play Store release steps and policy notes: `docs/play-store-release-checklist.md
   (Android 13+), else ACTION_SET_TEXT / ACTION_PASTE, else clipboard.
 - `Transcriber` / `Http`: provider REST calls with `HttpURLConnection` + `org.json` (AI rewrite times out at 20 s).
 - `Prefs`: SharedPreferences (excluded from backup and device transfer), provider enums and default models.
+- `ModelCatalog`: the Model dropdowns. Built-in model list per provider, plus the provider's own list-models
+  API (fetched with the user's key, cached in Prefs, filtered to models the app's endpoint can use).
+  "Other" lets the user type any name.
 
 ## Conventions
 - targetSdk 36 means edge-to-edge (no opt-out): the theme has no action bar, and
@@ -75,7 +78,8 @@ Play Store release steps and policy notes: `docs/play-store-release-checklist.md
   `Get-Content`/`Set-Content` garble non-ASCII text. Keep LF line endings.
 - No third-party dependencies (no AndroidX); keep it that way unless there's a strong reason.
 - minSdk 26, targetSdk/compileSdk 36, Kotlin 2.0.21, AGP 8.7.3.
-- Default model names go stale; they are user-editable in settings, so update the defaults in `Prefs.kt`.
+- Default model names go stale. Update the defaults in `Prefs.kt` and the built-in lists in `ModelCatalog.kt`
+  (users also get the live list via Refresh).
 - The mic foreground service must be started from the foreground (the activity) to keep mic access on
   Android 14+. Don't start it from the tile or background.
 - Play policy: keep the accessibility disclosure dialog before opening Accessibility settings, and keep the

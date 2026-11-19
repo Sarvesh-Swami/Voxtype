@@ -147,4 +147,9 @@ class Prefs(context: Context) {
 
     fun llmModel(p: LlmProvider) = str("llm_model_${p.id}").ifBlank { p.defaultModel }
     fun setLlmModel(p: LlmProvider, m: String) = put("llm_model_${p.id}", m.trim())
+
+    /** Model names last fetched from a provider's API (see ModelCatalog), keyed like "stt_openai". */
+    fun fetchedModels(slot: String): List<String> =
+        str("models_$slot").split('\n').filter { it.isNotBlank() }
+    fun setFetchedModels(slot: String, models: List<String>) = put("models_$slot", models.joinToString("\n"))
 }

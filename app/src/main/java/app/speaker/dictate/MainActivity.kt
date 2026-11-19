@@ -61,6 +61,8 @@ class MainActivity : Activity(), DictationEngine.Listener {
     private lateinit var edtCustomUrl: EditText
     private lateinit var edtLogUrl: EditText
     private val keyFields = mutableMapOf<String, EditText>()
+    private lateinit var sttPicker: ModelPicker
+    private lateinit var llmPicker: ModelPicker
 
     private var shownStt = SttProvider.BUILTIN
     private var shownLlm = LlmProvider.OPENAI
@@ -104,6 +106,27 @@ class MainActivity : Activity(), DictationEngine.Listener {
         findViewById<TextView>(R.id.txtFooter).text =
             "Speaker v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · your keys stay on this phone"
 
+        sttPicker = ModelPicker(
+            R.id.spnSttModel, R.id.edtSttModel, R.id.btnSttModels,
+            slot = { ModelCatalog.sttSlot(shownStt) },
+            choices = { ModelCatalog.sttChoices(prefs, shownStt) },
+            fetch = { ModelCatalog.fetchStt(prefs, shownStt) },
+            missingKey = {
+                val p = shownStt
+                if (p == SttProvider.BUILTIN || p == SttProvider.CUSTOM || prefs.apiKey(p.vendor).isNotEmpty()) null
+                else keyLabel(p.vendor)
+            },
+        )
+        llmPicker = ModelPicker(
+            R.id.spnLlmModel, R.id.edtLlmModel, R.id.btnLlmModels,
+            slot = { ModelCatalog.llmSlot(shownLlm) },
+            choices = { ModelCatalog.llmChoices(prefs, shownLlm) },
+            fetch = { ModelCatalog.fetchLlm(prefs, shownLlm) },
+            missingKey = {
+                val p = shownLlm
+                if (p == LlmProvider.CUSTOM || prefs.apiKey(p.vendor).isNotEmpty()) null else keyLabel(p.vendor)
+            },
+        )
         buildKeyFields()
         setupSpinners()
         loadSettings()
@@ -370,12 +393,92 @@ class MainActivity : Activity(), DictationEngine.Listener {
         }
     }
 
-    private fun setupSpinners() {
-        fun adapter(items: List<String>) = ArrayAdapter(this, R.layout.spinner_item, items).apply {
-            setDropDownViewResource(R.layout.spinner_dropdown_item)
+    private fun listAdapter(items: List<String>) = ArrayAdapter(this, R.layout.spinner_item, items).apply {
+        setDropDownViewResource(R.layout.spinner_dropdown_item)
+    }
+
+    /**
+     * Model dropdown for one provider picker: built-in + fetched model names, plus "Other" which reveals
+     * a text field. The text field always holds the chosen name, so saving reads it as before.
+     */
+    private inner class ModelPicker(
+        spinnerId: Int, fieldId: Int, refreshId: Int,
+        private val slot: () -> String,
+        private val choices: () -> List<String>,
+        private val fetch: () -> List<String>,
+        /** Vendor label whose missing key blocks fetching, or null when fetching can go ahead. */
+        private val missingKey: () -> String?,
+    ) {
+        val field: EditText = findViewById(fieldId)
+        private val spinner: Spinner = findViewById(spinnerId)
+        private var models = emptyList<String>()
+        private var fetching = false
+
+        init {
+            spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                    if (pos < models.size) {
+                        if (field.text.toString() != models[pos]) ui("Select: model ${slot()} = ${models[pos]}")
+                        field.setText(models[pos])
+                        field.visibility = View.GONE
+                    } else {
+                        field.visibility = View.VISIBLE
+                    }
+                }
+                override fun onNothingSelected(p: AdapterView<*>?) = Unit
+            }
+            findViewById<View>(refreshId).setOnClickListener { ui("Tap: refresh models ${slot()}"); refresh(manual = true) }
         }
-        spnStt.adapter = adapter(SttProvider.entries.map { it.label })
-        spnLlm.adapter = adapter(LlmProvider.entries.map { it.label })
+
+        /** Shows the list for the current provider; fetches the full list once if a key is set. */
+        fun show() {
+            bind()
+            if (prefs.fetchedModels(slot()).isEmpty() && missingKey() == null) refresh(manual = false)
+        }
+
+        private fun bind() {
+            val current = field.text.toString().trim()
+            models = choices().let { if (current.isNotEmpty() && current !in it) listOf(current) + it else it }
+            spinner.adapter = listAdapter(models + "Other (type a name)")
+            val index = models.indexOf(current)
+            spinner.setSelection(if (index >= 0) index else models.size, false)
+            field.visibility = if (index >= 0) View.GONE else View.VISIBLE
+        }
+
+        private fun refresh(manual: Boolean) {
+            if (fetching) return
+            // The fetch reads keys and the custom URL from prefs. Only save on a tap: an automatic
+            // fetch can run while the screen is still loading, before the fields hold the settings.
+            if (manual) saveSettings()
+            missingKey()?.let { vendor ->
+                if (manual) toast("Add your $vendor in API keys below")
+                return
+            }
+            val requested = slot()
+            fetching = true
+            Thread({
+                val result = runCatching { fetch() }
+                runOnUiThread {
+                    fetching = false
+                    if (isDestroyed || slot() != requested) return@runOnUiThread
+                    result.onSuccess { list ->
+                        ui("Models $requested: ${list.size} from provider")
+                        bind()
+                        if (manual) toast(if (list.isEmpty()) "The provider returned no models" else "${list.size} models loaded")
+                    }.onFailure { e ->
+                        ui("Models $requested: fetch failed: $e")
+                        if (manual) toast("Couldn't load models: ${e.message ?: e.javaClass.simpleName}")
+                    }
+                }
+            }, "model-list").start()
+        }
+    }
+
+    private fun keyLabel(vendor: String) = KEY_VENDORS.firstOrNull { it.first == vendor }?.second ?: vendor
+
+    private fun setupSpinners() {
+        spnStt.adapter = listAdapter(SttProvider.entries.map { it.label })
+        spnLlm.adapter = listAdapter(LlmProvider.entries.map { it.label })
         spnStt.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
                 prefs.setSttModel(shownStt, edtSttModel.text.toString())
@@ -384,6 +487,7 @@ class MainActivity : Activity(), DictationEngine.Listener {
                 prefs.sttProvider = shownStt.id
                 edtSttModel.setText(prefs.sttModel(shownStt))
                 rowSttModel.visibility = if (shownStt == SttProvider.BUILTIN) View.GONE else View.VISIBLE
+                if (shownStt != SttProvider.BUILTIN) sttPicker.show()
             }
             override fun onNothingSelected(p: AdapterView<*>?) = Unit
         }
@@ -394,6 +498,7 @@ class MainActivity : Activity(), DictationEngine.Listener {
                 shownLlm = LlmProvider.entries[pos]
                 prefs.llmProvider = shownLlm.id
                 edtLlmModel.setText(prefs.llmModel(shownLlm))
+                llmPicker.show()
             }
             override fun onNothingSelected(p: AdapterView<*>?) = Unit
         }
@@ -407,6 +512,8 @@ class MainActivity : Activity(), DictationEngine.Listener {
         spnStt.setSelection(shownStt.ordinal)
         spnLlm.setSelection(shownLlm.ordinal)
         rowSttModel.visibility = if (shownStt == SttProvider.BUILTIN) View.GONE else View.VISIBLE
+        if (shownStt != SttProvider.BUILTIN) sttPicker.show()
+        llmPicker.show()
         edtLanguage.setText(prefs.language)
         swPolish.isChecked = prefs.polishEnabled
         polishOptions.visibility = if (prefs.polishEnabled) View.VISIBLE else View.GONE
