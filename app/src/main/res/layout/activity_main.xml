@@ -49,24 +49,6 @@
                         android:text="Speaker"
                         android:textColor="@color/on_brand"
                         android:textSize="28sp" />
-
-                    <Button
-                        android:id="@+id/btnUpdate"
-                        android:layout_width="wrap_content"
-                        android:layout_height="38dp"
-                        android:background="@drawable/bg_pill"
-                        android:drawableStart="@drawable/ic_arrow_up"
-                        android:drawablePadding="6dp"
-                        android:drawableTint="@color/on_brand"
-                        android:fontFamily="sans-serif-medium"
-                        android:minWidth="0dp"
-                        android:paddingStart="14dp"
-                        android:paddingEnd="16dp"
-                        android:stateListAnimator="@null"
-                        android:text="Update"
-                        android:textAllCaps="false"
-                        android:textColor="@color/on_brand"
-                        android:textSize="14sp" />
                 </LinearLayout>
 
                 <TextView
@@ -421,39 +403,19 @@
 
                     <TextView
                         style="@style/CardTitle"
-                        android:text="Logs &amp; debugging" />
+                        android:text="Diagnostics" />
                 </LinearLayout>
 
                 <TextView
-                    android:id="@+id/txtLogsBody"
                     style="@style/Body"
                     android:layout_marginTop="10dp"
-                    android:text="Logs stream live to the URL below (your PC via ngrok). Blank = built-in URL, “off” = don't send." />
-
-                <TextView
-                    android:id="@+id/lblLogUrl"
-                    style="@style/Label"
-                    android:text="LOG URL" />
-
-                <EditText
-                    android:id="@+id/edtLogUrl"
-                    style="@style/Field"
-                    android:hint="https://xxxx.ngrok-free.app/log"
-                    android:inputType="textUri" />
+                    android:text="Having a problem? Copy or share a diagnostic log with support. Nothing is sent automatically, and the words you dictate are never written to the log." />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="12dp"
                     android:orientation="horizontal">
-
-                    <Button
-                        android:id="@+id/btnTestLog"
-                        style="@style/ButtonTonal"
-                        android:layout_width="0dp"
-                        android:layout_marginEnd="8dp"
-                        android:layout_weight="1"
-                        android:text="Test" />
 
                     <Button
                         android:id="@+id/btnCopyLogs"

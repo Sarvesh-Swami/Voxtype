@@ -5,11 +5,11 @@ app/build/
 local.properties
 *.iml
 .idea/
+
+# Build outputs (APK / AAB / R8 mapping) are uploaded to Play Console by hand, not versioned
+dist/
 *.apk
-!dist/*.apk
+*.aab
 
-# Signing key: keep out of git, but BACK IT UP (needed to update the installed app)
+# Signing keys (Play upload key + its passwords): keep out of git, but BACK THEM UP
 keystore/
-
-# Play release artifacts (.aab + R8 mapping): uploaded to Play Console by hand, not versioned
-dist/play/

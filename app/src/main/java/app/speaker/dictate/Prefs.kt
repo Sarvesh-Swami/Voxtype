@@ -1,7 +1,6 @@
 package app.speaker.dictate
 
 import android.content.Context
-import android.net.Uri
 
 /** Speech-to-text engines. `vendor` is the key slot the API key is stored under. */
 enum class SttProvider(val id: String, val label: String, val vendor: String, val defaultModel: String) {
@@ -99,37 +98,6 @@ class Prefs(context: Context) {
     var autoInsert: Boolean
         get() = sp.getBoolean("auto_insert", true)
         set(v) = sp.edit().putBoolean("auto_insert", v).apply()
-
-    /**
-     * Where RemoteLog sends logs. Blank = the URL built into the app (gradle.properties
-     * speakerLogUrl). Typing "off" disables sending.
-     */
-    var logUrl: String
-        get() {
-            val v = str("log_url")
-            val url = when {
-                v.equals("off", true) -> ""
-                v.isBlank() -> BuildConfig.DEFAULT_LOG_URL
-                else -> v
-            }
-            // "https://host" or "https://host/" -> "https://host/log" (the receiver's path).
-            if (url.isEmpty()) return url
-            val path = Uri.parse(url).path
-            return if (path.isNullOrEmpty() || path == "/") url.trimEnd('/') + "/log" else url
-        }
-        set(v) {
-            val t = v.trim()
-            val normalized = when {
-                t.isEmpty() || t == BuildConfig.DEFAULT_LOG_URL -> "" // follow the built-in URL
-                t.equals("off", true) || t.startsWith("http") -> t
-                else -> "https://$t"
-            }
-            put("log_url", normalized)
-        }
-
-    /** What to show in the settings field (raw value, so "off" stays visible). */
-    val logUrlField: String
-        get() = str("log_url").ifBlank { BuildConfig.DEFAULT_LOG_URL }
 
     var bubbleX: Int
         get() = sp.getInt("bubble_x", 24)

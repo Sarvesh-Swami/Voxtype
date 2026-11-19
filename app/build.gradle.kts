@@ -5,19 +5,11 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-// TWO FLAVORS
-//  play: what goes to Google Play. No server of ours, no self-update, no remote logging.
-//        Build:  gradlew bundlePlayRelease   ->  app/build/outputs/bundle/playRelease/app-play-release.aab
-//  dev:  sideloaded test build. Streams logs to your PC (ngrok) and has the in-app Update button.
-//        Build:  gradlew assembleDevDebug    ->  app/build/outputs/apk/dev/debug/app-dev-debug.apk
-//
-// SIGNING
-//  dev   : keystore/speaker-debug.keystore (the key the sideloaded app was first signed with, so it
-//          updates in place). Keep it backed up.
-//  play  : keystore/speaker-upload.jks + keystore/upload.properties (Play "upload key"; Google re-signs
-//          with the app-signing key it holds). Keep both backed up, outside git.
-// Never change applicationId, and always raise versionCode.
-val devKeystore = rootProject.file("keystore/speaker-debug.keystore")
+// Release build for Google Play:
+//   gradlew bundleRelease  ->  app/build/outputs/bundle/release/app-release.aab
+// Signed with the Play upload key: keystore/speaker-upload.jks + keystore/upload.properties
+// (both git-ignored; keep them backed up). Google re-signs with the app-signing key it holds.
+// Never change applicationId, and always raise versionCode for each upload.
 val uploadProps = Properties().apply {
     rootProject.file("keystore/upload.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
 }
@@ -34,17 +26,9 @@ android {
         versionName = "1.0.0"
     }
 
-    buildFeatures { buildConfig = true }
+    buildFeatures { buildConfig = true } // VERSION_NAME / VERSION_CODE shown in the app
 
     signingConfigs {
-        if (devKeystore.exists()) {
-            create("dev") {
-                storeFile = devKeystore
-                storePassword = "android"
-                keyAlias = "androiddebugkey"
-                keyPassword = "android"
-            }
-        }
         if (uploadProps.getProperty("storeFile") != null) {
             create("upload") {
                 storeFile = rootProject.file("keystore/" + uploadProps.getProperty("storeFile"))
@@ -55,32 +39,12 @@ android {
         }
     }
 
-    flavorDimensions += "dist"
-    productFlavors {
-        create("play") {
-            dimension = "dist"
-            buildConfigField("boolean", "DEV_TOOLS", "false")
-            buildConfigField("String", "DEFAULT_LOG_URL", "\"\"")
-        }
-        create("dev") {
-            dimension = "dist"
-            versionNameSuffix = "-dev"
-            buildConfigField("boolean", "DEV_TOOLS", "true")
-            // Live-log URL built into the dev app (set speakerLogUrl in gradle.properties).
-            val logUrl = (project.findProperty("speakerLogUrl") as String?).orEmpty().trim()
-            buildConfigField("String", "DEFAULT_LOG_URL", "\"$logUrl\"")
-        }
-    }
-
     buildTypes {
-        debug {
-            signingConfig = signingConfigs.findByName("dev") ?: signingConfigs.getByName("debug")
-        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.findByName("upload") ?: signingConfigs.findByName("dev")
+            signingConfigs.findByName("upload")?.let { signingConfig = it }
         }
     }
 

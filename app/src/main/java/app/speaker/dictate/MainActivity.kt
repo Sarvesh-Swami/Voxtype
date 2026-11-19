@@ -39,7 +39,6 @@ class MainActivity : Activity(), DictationEngine.Listener {
     private lateinit var txtTryStatus: TextView
     private lateinit var txtTryHint: TextView
     private lateinit var txtResult: EditText
-    private lateinit var btnUpdate: Button
     private lateinit var btnBubble: Button
     private lateinit var txtBubbleState: TextView
     private lateinit var cardSetup: View
@@ -59,7 +58,6 @@ class MainActivity : Activity(), DictationEngine.Listener {
     private lateinit var edtLlmModel: EditText
     private lateinit var edtPrompt: EditText
     private lateinit var edtCustomUrl: EditText
-    private lateinit var edtLogUrl: EditText
     private val keyFields = mutableMapOf<String, EditText>()
 
     private var shownStt = SttProvider.BUILTIN
@@ -78,7 +76,6 @@ class MainActivity : Activity(), DictationEngine.Listener {
         txtTryStatus = findViewById(R.id.txtTryStatus)
         txtTryHint = findViewById(R.id.txtTryHint)
         txtResult = findViewById(R.id.txtResult)
-        btnUpdate = findViewById(R.id.btnUpdate)
         btnBubble = findViewById(R.id.btnBubble)
         txtBubbleState = findViewById(R.id.txtBubbleState)
         cardSetup = findViewById(R.id.cardSetup)
@@ -98,7 +95,6 @@ class MainActivity : Activity(), DictationEngine.Listener {
         edtLlmModel = findViewById(R.id.edtLlmModel)
         edtPrompt = findViewById(R.id.edtPrompt)
         edtCustomUrl = findViewById(R.id.edtCustomUrl)
-        edtLogUrl = findViewById(R.id.edtLogUrl)
 
         findViewById<TextView>(R.id.txtVersion).text = "v${BuildConfig.VERSION_NAME}"
         findViewById<TextView>(R.id.txtFooter).text =
@@ -108,19 +104,6 @@ class MainActivity : Activity(), DictationEngine.Listener {
         setupSpinners()
         loadSettings()
         wireActions()
-        applyFlavor()
-    }
-
-    /** Play builds have no server: hide the sideload Update button and the remote-log URL. */
-    private fun applyFlavor() {
-        if (BuildConfig.DEV_TOOLS) return
-        btnUpdate.visibility = View.GONE
-        edtLogUrl.visibility = View.GONE
-        findViewById<View>(R.id.lblLogUrl).visibility = View.GONE
-        findViewById<View>(R.id.btnTestLog).visibility = View.GONE
-        findViewById<TextView>(R.id.txtLogsBody).text =
-            "Having a problem? Copy or share a diagnostic log with support. Nothing is sent automatically, " +
-                "and the words you dictate are never written to the log."
     }
 
     private fun wireActions() {
@@ -141,17 +124,6 @@ class MainActivity : Activity(), DictationEngine.Listener {
             resultBase = ""
         }
         btnBubble.setOnClickListener { ui("Tap: ${btnBubble.text}"); toggleBubble() }
-        btnUpdate.setOnClickListener {
-            ui("Tap: Update")
-            saveSettings()
-            btnUpdate.isEnabled = false
-            btnUpdate.text = "Checking…"
-            Updater.checkAndInstall(this) { msg ->
-                btnUpdate.isEnabled = true
-                btnUpdate.text = "Update"
-                toast(msg)
-            }
-        }
         swAutoType.setOnCheckedChangeListener { _, on -> ui("Toggle: auto-type = $on"); prefs.autoInsert = on }
         swStopOnBlur.setOnCheckedChangeListener { _, on -> ui("Toggle: stop when leaving text field = $on"); prefs.stopOnFocusLoss = on }
         swIsland.setOnCheckedChangeListener { _, on ->
@@ -172,14 +144,6 @@ class MainActivity : Activity(), DictationEngine.Listener {
         findViewById<Button>(R.id.btnEditPrompt).setOnClickListener {
             ui("Tap: Edit session prompt")
             showPromptDialog(enabling = false)
-        }
-        findViewById<Button>(R.id.btnTestLog).setOnClickListener {
-            ui("Tap: Test log URL")
-            saveSettings()
-            val url = prefs.logUrl
-            if (url.isEmpty()) { toast("Enter your log URL first (or use Copy)"); return@setOnClickListener }
-            toast("Testing…")
-            RemoteLog.test(url) { toast(it) }
         }
         findViewById<View>(R.id.btnPrivacy).setOnClickListener { ui("Tap: Privacy"); showPrivacy() }
         findViewById<Button>(R.id.btnCopyLogs).setOnClickListener {
@@ -202,12 +166,6 @@ class MainActivity : Activity(), DictationEngine.Listener {
         super.onResume()
         ui("Settings screen opened (multi-window=$isInMultiWindowMode)")
         refreshStatus()
-        if (BuildConfig.DEV_TOOLS) Updater.check(this) { info ->
-            if (info != null && info.versionCode > BuildConfig.VERSION_CODE) {
-                btnUpdate.text = "Update to v${info.versionName}"
-                btnUpdate.setBackgroundResource(R.drawable.bg_pill_success)
-            }
-        }
     }
 
     override fun onPause() {
@@ -351,7 +309,7 @@ class MainActivity : Activity(), DictationEngine.Listener {
         val keys = KEY_VENDORS.map { it.first }.filter { prefs.apiKey(it).isNotEmpty() }
         return "stt=${stt.id}/${prefs.sttModel(stt)} lang=${prefs.language.ifBlank { "auto" }} " +
             "polish=${prefs.polishEnabled} llm=${llm.id}/${prefs.llmModel(llm)} autoType=${prefs.autoInsert} " +
-            "keysSet=$keys logUrl=${if (prefs.logUrl.isEmpty()) "off" else "on"}"
+            "keysSet=$keys"
     }
 
     private fun buildKeyFields() {
@@ -418,7 +376,6 @@ class MainActivity : Activity(), DictationEngine.Listener {
         edtPrompt.setText(prefs.polishPrompt)
         edtCustomUrl.setText(prefs.customBaseUrl)
         keyFields.forEach { (vendor, field) -> field.setText(prefs.apiKey(vendor)) }
-        edtLogUrl.setText(prefs.logUrlField)
     }
 
     private fun saveSettings() {
@@ -433,8 +390,6 @@ class MainActivity : Activity(), DictationEngine.Listener {
         prefs.polishPrompt = edtPrompt.text.toString()
         prefs.customBaseUrl = edtCustomUrl.text.toString()
         keyFields.forEach { (vendor, field) -> prefs.setApiKey(vendor, field.text.toString()) }
-        prefs.logUrl = edtLogUrl.text.toString()
-        RemoteLog.setUrl(prefs.logUrl)
     }
 
     // ---------------- permissions, setup checklist, bubble ----------------
@@ -500,10 +455,7 @@ class MainActivity : Activity(), DictationEngine.Listener {
                 ui("Accessibility disclosure: agreed; opening Accessibility settings")
                 runCatching { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
                     .onFailure { toast("Open Settings → Accessibility → Speaker auto-type") }
-                toast(
-                    if (BuildConfig.DEV_TOOLS) "Open “Speaker auto-type” and turn it on. Greyed out? App info → ⋮ → Allow restricted settings"
-                    else "Open “Speaker auto-type” and turn it on"
-                )
+                toast("Open “Speaker auto-type” and turn it on")
             }
             .setNegativeButton("Not now") { _, _ ->
                 ui("Accessibility disclosure: declined")
