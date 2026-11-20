@@ -396,6 +396,23 @@ class MainActivity : Activity(), DictationEngine.Listener {
 
         private fun bind() {
             val current = field.text.toString().trim()
+            val available = prefs.fetchedModels(slot())
+            if (available.isNotEmpty()) {
+                // The provider told us what this key can use: offer exactly that, nothing else.
+                models = choices()
+                var index = models.indexOf(current)
+                if (index < 0) {
+                    ui("Model \"$current\" is not available for this key (${slot()}); switched to ${models.first()}")
+                    if (current.isNotEmpty()) toast("\"$current\" isn't available for your key. Using ${models.first()}")
+                    field.setText(models.first())
+                    index = 0
+                }
+                spinner.adapter = listAdapter(models)
+                spinner.setSelection(index, false)
+                field.visibility = View.GONE
+                return
+            }
+            // No list from the provider yet (no key, or it couldn't be loaded): suggestions + free typing.
             models = choices().let { if (current.isNotEmpty() && current !in it) listOf(current) + it else it }
             spinner.adapter = listAdapter(models + "Other (type a name)")
             val index = models.indexOf(current)
@@ -420,7 +437,7 @@ class MainActivity : Activity(), DictationEngine.Listener {
                     fetching = false
                     if (isDestroyed || slot() != requested) return@runOnUiThread
                     result.onSuccess { list ->
-                        ui("Models $requested: ${list.size} from provider")
+                        ui("Models $requested: ${list.size} available for this key: ${list.joinToString()}")
                         bind()
                         if (manual) toast(if (list.isEmpty()) "The provider returned no models" else "${list.size} models loaded")
                     }.onFailure { e ->
