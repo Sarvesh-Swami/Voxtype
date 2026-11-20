@@ -12,7 +12,7 @@ class Transcriber(private val prefs: Prefs) {
     companion object {
         // Rewrites run one after another and nothing is typed until each is done, so a hung
         // request must fail fast (the original words are typed instead).
-        const val POLISH_TIMEOUT_MS = 15_000
+        const val POLISH_TIMEOUT_MS = 30_000
         private const val TAG = "Speaker.ai"
     }
 

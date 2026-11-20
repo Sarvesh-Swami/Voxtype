@@ -138,6 +138,15 @@ class TypeAccessibilityService : AccessibilityService() {
         return true
     }
 
+    /** The character just before the cursor in the focused field (Android 13+ input connection), or null. */
+    fun charBeforeCursor(): Char? {
+        if (Build.VERSION.SDK_INT < 33) return null
+        val im = inputMethod ?: return null
+        if (!im.currentInputStarted) return null
+        val st = im.currentInputConnection?.getSurroundingText(1, 0, 0) ?: return null
+        return st.text.getOrNull(st.selectionStart - st.offset - 1)
+    }
+
     // ---------------- fallback for older Android ----------------
 
     fun insertWithNodeActions(text: String): Insert {
@@ -187,37 +196,39 @@ object LiveTyper {
 
     private var typed = "" // what is currently on screen for the in-progress phrase
 
-    // The last phrase typed through the input connection, for "undo AI". Cleared by anything typed
-    // after it, so undo only ever touches the text right before the cursor that we just typed.
-    private var lastFinal = ""
-    private var lastFinalAt = 0L
-
     fun reset() {
         if (typed.isNotEmpty()) Log.i(TAG, "LiveTyper reset (dropping tracking of ${typed.length} chars)")
         typed = ""
-        lastFinal = ""
     }
 
     /**
-     * Swaps the phrase we just typed ([expected]) for [replacement], if it is still the last thing we
-     * typed (within 30 s) and a text field is connected. Returns false when it isn't safe to try.
+     * Types a finished block of text (the AI rewrite) into the focused field, with a space first when
+     * the cursor sits right after a word. Falls back to node actions, then the clipboard (COPIED).
      */
-    fun replaceLast(expected: String, replacement: String): Boolean {
+    fun insert(ctx: Context, text: String): Result {
+        typed = ""
         val svc = TypeAccessibilityService.instance
-        val age = System.currentTimeMillis() - lastFinalAt
-        if (svc == null || expected.isEmpty() || lastFinal != expected || typed.isNotEmpty() || age > 30_000) {
-            Log.i(TAG, "Undo AI refused: lastMatches=${lastFinal == expected} livePhrase=${typed.isNotEmpty()} " +
-                "ageMs=$age a11y=${svc != null}")
-            return false
+        val autoType = Prefs(ctx).autoInsert
+        Log.i(TAG, "Insert block: ${text.length} chars autoType=$autoType a11y=${svc != null} fieldFocused=${svc?.editorActive()}")
+        if (autoType && svc != null) {
+            val before = runCatching { svc.charBeforeCursor() }.getOrNull()
+            val needsSpace = before != null && !before.isWhitespace() && text.firstOrNull()?.let { it !in ".,!?;:)" } == true
+            val block = if (needsSpace) " $text" else text
+            if (runCatching { svc.typeViaInputConnection(block, "") }.getOrDefault(false)) return Result.TYPED
+            val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            cm.setPrimaryClip(ClipData.newPlainText("Dictation", text)) // ACTION_PASTE pastes the clipboard
+            when (runCatching { svc.insertWithNodeActions(text) }.getOrDefault(TypeAccessibilityService.Insert.FAILED)) {
+                TypeAccessibilityService.Insert.SET_TEXT, TypeAccessibilityService.Insert.PASTE -> return Result.TYPED
+                TypeAccessibilityService.Insert.FAILED -> Unit
+            }
         }
-        val ok = runCatching { svc.typeViaInputConnection(replacement, expected) }.getOrDefault(false)
-        Log.i(TAG, "Undo AI: replaced ${expected.length} chars with ${replacement.length} chars -> ok=$ok")
-        if (ok) { lastFinal = replacement; lastFinalAt = System.currentTimeMillis() }
-        return ok
+        val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        cm.setPrimaryClip(ClipData.newPlainText("Dictation", text))
+        Log.i(TAG, "No text field to type into: copied ${text.length} chars to the clipboard")
+        return Result.COPIED
     }
 
     fun update(ctx: Context, text: String, isFinal: Boolean, sessionText: String): Result {
-        lastFinal = ""
         val svc = TypeAccessibilityService.instance
         val autoType = Prefs(ctx).autoInsert
         if (isFinal) Log.i(TAG, "Final phrase: ${text.length} chars ${spoken(text)} autoType=$autoType a11y=${svc != null}")
@@ -228,8 +239,6 @@ object LiveTyper {
             }
             if (ok) {
                 typed = if (isFinal) "" else text
-                lastFinal = if (isFinal) text else ""
-                lastFinalAt = System.currentTimeMillis()
                 return Result.TYPED
             }
             if (!isFinal) return Result.WAITING // live text needs an input connection; wait for the final

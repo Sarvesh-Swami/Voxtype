@@ -13,12 +13,17 @@ import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
+import android.text.InputType
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import kotlin.math.hypot
@@ -27,7 +32,8 @@ import kotlin.math.hypot
  * Foreground service that owns the floating mic bubble (Android's closest thing to a
  * "Dynamic Island"), the persistent notification with a Dictate action, and the dictation engine.
  *
- * Bubble: tap = start/stop dictation, drag = move, long-press = open settings.
+ * Bubble: tap = start/stop dictation (AI rewrite on: stop and send the draft), drag = move,
+ * long-press = quick menu (AI rewrite on/off, open Speaker).
  */
 class BubbleService : Service(), DictationEngine.Listener {
 
@@ -164,7 +170,8 @@ class BubbleService : Service(), DictationEngine.Listener {
             if (focused) {
                 sawFieldThisSession = true
                 mainHandler.removeCallbacks(stopOnBlur) // came back (or moved to another field): keep going
-            } else if (prefs.stopOnFocusLoss && engine.state == DictationEngine.State.RECORDING && sawFieldThisSession) {
+            } else if (!draftSession && prefs.stopOnFocusLoss && engine.state == DictationEngine.State.RECORDING && sawFieldThisSession) {
+                // (AI drafts aren't typed live, so leaving the field, or editing the card, doesn't matter.)
                 // Debounced: apps briefly drop and re-take focus, e.g. right after sending a message.
                 mainHandler.postDelayed(stopOnBlur, 1500)
             }
@@ -182,11 +189,32 @@ class BubbleService : Service(), DictationEngine.Listener {
             sawFieldThisSession = TypeAccessibilityService.instance?.editorActive() == true
             log("Session started; a text field is ${if (sawFieldThisSession) "focused" else "NOT focused yet"}")
         }
-        if (state != DictationEngine.State.RECORDING) mainHandler.removeCallbacks(stopOnBlur)
-        if (state == DictationEngine.State.IDLE) {
-            captionLine = null // dictated words don't linger in the notification after the session
-            if (card != null && !cardOffersUndo) hideCardIn(3000) // a finished rewrite keeps its own timer
+        if (state == DictationEngine.State.RECORDING && previous == DictationEngine.State.IDLE) {
+            draftSession = engine.draftMode
+            sendWhenIdle = false; discardWhenIdle = false; typeRawWhenIdle = false
+            cardError = null
+            if (draftSession) showDraftCard()
         }
+        if (state != DictationEngine.State.RECORDING) mainHandler.removeCallbacks(stopOnBlur)
+        if (state == DictationEngine.State.IDLE && draftSession) {
+            cardLive?.visibility = View.GONE
+            when {
+                discardWhenIdle -> { discardWhenIdle = false; clearDraft(); hideCard() }
+                typeRawWhenIdle -> {
+                    typeRawWhenIdle = false
+                    val text = draftText().trim()
+                    clearDraft(); hideCard()
+                    if (text.isNotEmpty()) deliver(text, ai = false)
+                }
+                // No card on screen (bubble hidden) means nowhere to press Send: send right away.
+                sendWhenIdle || card == null -> {
+                    sendWhenIdle = false
+                    if (hasDraft) sendDraft("Session ended") else hideCard()
+                }
+                !hasDraft -> hideCard()
+            }
+        }
+        updateCard()
         if (state == DictationEngine.State.IDLE && copiedThisSession) {
             toast("Dictation ($sessionChars chars) is on the clipboard. Long-press, then Paste")
         }
@@ -207,6 +235,7 @@ class BubbleService : Service(), DictationEngine.Listener {
 
     private fun removeBubble() {
         hideCard()
+        hideMenu()
         pulse?.cancel(); pulse = null
         bubble?.let { runCatching { wm.removeView(it) }.onFailure { e -> log("removeView failed: $e") } }
         bubble = null
@@ -278,7 +307,7 @@ class BubbleService : Service(), DictationEngine.Listener {
     private fun updateMediaState() {
         val s = session ?: return
         val recording = currentState != DictationEngine.State.IDLE
-        val subtitle = if (rewriting) "✨ Rewriting with AI…" else when (currentState) {
+        val subtitle = if (processing) "✨ Processing with AI…" else when (currentState) {
             DictationEngine.State.IDLE -> "Tap ▶ to dictate"
             DictationEngine.State.RECORDING -> "Listening… tap ⏸ to stop"
             DictationEngine.State.WORKING -> "Finishing…"
@@ -322,129 +351,342 @@ class BubbleService : Service(), DictationEngine.Listener {
 
     override fun onError(message: String) = toast(message)
 
-    // ---- Caption card next to the bubble (AI rewrite) ----
-    // Shows what you're saying, then what the AI turned it into. Tap it right after a rewrite to put
-    // your own words back ("undo AI"). With captions off, it only shows "Rewriting…".
+    // ---- AI rewrite: draft card next to the bubble ----
+    // With AI rewrite on, nothing is typed while you speak. Your words collect in this card, where
+    // you can scroll and edit them. ✨ Send (or a tap on the bubble) sends the whole text to the AI in
+    // one call; the result is typed into the focused field, or copied to the clipboard if none is.
+    // The card exists only in AI rewrite mode, and never shows the AI's text.
 
-    private var rewriting = false
-    private var card: android.widget.LinearLayout? = null
-    private var cardSpoken: TextView? = null
-    private var cardAi: TextView? = null
-    private var cardHint: TextView? = null
+    /** The current (or last) session collects an AI draft instead of typing. */
+    private var draftSession = false
+    private var processing = false
+    private var sendWhenIdle = false
+    private var discardWhenIdle = false
+    private var typeRawWhenIdle = false
+    private var cardError: String? = null
+    /** Holds the draft while no card is on screen (bubble hidden), so nothing is lost. */
+    private val offscreenDraft = StringBuilder()
+
+    private var card: LinearLayout? = null
+    private var cardEdit: EditText? = null
+    private var cardLive: TextView? = null
+    private var cardStatus: TextView? = null
+    private var btnClear: TextView? = null
+    private var btnMore: TextView? = null
+    private var btnSend: TextView? = null
     private var cardParams: WindowManager.LayoutParams? = null
     private var cardAnim: android.animation.ObjectAnimator? = null
-    private var undoable: DictationEngine.Caption? = null
-    private var cardOffersUndo = false
-    /** Last "You: … → AI: …" pair for the notification; cleared when the session ends. */
-    private var captionLine: String? = null
-    private val hideCardLater = Runnable { hideCard() }
+    private var cardEditing = false
 
-    override fun onRewriting(active: Boolean) {
-        if (active == rewriting) return
-        rewriting = active
-        log("AI rewrite indicator ${if (active) "ON (text will be typed when the rewrite arrives)" else "OFF"}")
-        if (!prefs.showCaptions) {
-            if (active) showCard(null, "✨ Rewriting…", null, pulse = true) else hideCard()
+    private fun draftText(): String = cardEdit?.text?.toString() ?: offscreenDraft.toString()
+    private val hasDraft get() = draftText().isNotBlank()
+
+    override fun onDraft(phrase: String, isFinal: Boolean) {
+        if (!draftSession || discardWhenIdle) return
+        if (card == null) showDraftCard()
+        if (!isFinal) {
+            cardLive?.apply { text = "🎤 $phrase"; visibility = View.VISIBLE }
+            moveCard()
+            return
         }
+        cardLive?.visibility = View.GONE
+        val current: CharSequence = cardEdit?.text ?: offscreenDraft
+        val sep = if (current.isNotEmpty() && !current.last().isWhitespace() && phrase.first() !in ".,!?;:)") " " else ""
+        val ed = cardEdit
+        if (ed != null) {
+            ed.text.append(sep + phrase)
+            if (!cardEditing) scrollDraftToEnd()
+        } else {
+            offscreenDraft.append(sep).append(phrase)
+        }
+        updateCard()
+    }
+
+    /** Main action in AI mode (bubble tap, ✨ Send): stop listening if needed, then send the draft. */
+    private fun sendOrStop(why: String) {
+        if (processing) { toast("Still processing with AI…"); return }
+        when (engine.state) {
+            DictationEngine.State.RECORDING -> {
+                log("$why: stop listening, then send the draft to AI")
+                sendWhenIdle = true
+                engine.stopIfActive("$why: send to AI")
+            }
+            DictationEngine.State.WORKING -> { log("$why: will send when the last phrase is in"); sendWhenIdle = true }
+            DictationEngine.State.IDLE -> sendDraft(why)
+        }
+    }
+
+    private fun sendDraft(why: String) {
+        finishEditing()
+        val text = draftText().trim()
+        if (text.isEmpty()) {
+            toast("Nothing to send yet. Speak first")
+            hideCard()
+            return
+        }
+        cardError = null
+        if (!prefs.polishEnabled) {
+            log("$why: AI rewrite is off; typing the draft as it is (${text.length} chars)")
+            clearDraft(); hideCard()
+            deliver(text, ai = false)
+            return
+        }
+        processing = true
+        log("$why: sending the draft to AI (${text.length} chars)")
+        statusChanged()
+        engine.rewrite(text) { r ->
+            processing = false
+            if (r.ok) {
+                RewriteHistory.add(this, text, r.text, null)
+                clearDraft(); hideCard()
+                deliver(r.text, ai = true)
+            } else {
+                RewriteHistory.add(this, text, null, r.why)
+                if (card == null) {
+                    // No card to retry from (bubble hidden): don't lose the words.
+                    toast("AI rewrite failed: ${r.why}. Your own words are used instead")
+                    clearDraft()
+                    deliver(text, ai = false)
+                } else {
+                    cardError = "⚠ ${r.why ?: "AI rewrite failed"}. Edit or tap ✨ Send to retry"
+                    toast("AI rewrite failed: ${r.why}")
+                }
+            }
+            statusChanged()
+        }
+    }
+
+    /** Types [text] into the focused field, or puts it on the clipboard when no field is focused. */
+    private fun deliver(text: String, ai: Boolean) {
+        // Let the app underneath get its text field back first (the card may just have had focus).
+        mainHandler.postDelayed({
+            val result = LiveTyper.insert(this, text)
+            log("Delivered ${if (ai) "AI" else "original"} text (${text.length} chars): $result")
+            if (result == LiveTyper.Result.COPIED) {
+                toast(if (ai) "No text box selected: the AI text is on the clipboard. Long-press a text box, then Paste"
+                else "No text box selected: your words are on the clipboard")
+            }
+        }, 350)
+    }
+
+    private fun clearDraft() {
+        cardEdit?.setText("")
+        offscreenDraft.setLength(0)
+        cardLive?.visibility = View.GONE
+        cardError = null
+    }
+
+    private fun discardDraft() {
+        log("Draft discarded by the user (${draftText().length} chars)")
+        finishEditing()
+        sendWhenIdle = false
+        clearDraft()
+        if (engine.state != DictationEngine.State.IDLE) {
+            discardWhenIdle = true
+            engine.stopIfActive("draft discarded")
+        }
+        hideCard()
+    }
+
+    /** Bubble look, card, notification and island after processing/draft changes. */
+    private fun statusChanged() {
+        renderBubble()
+        updateCard()
         updateMediaState()
         getSystemService(NotificationManager::class.java).notify(NOTIF_ID, buildNotification())
     }
 
-    override fun onCaption(caption: DictationEngine.Caption) {
-        if (!prefs.showCaptions) return
-        val said = "🎤 " + caption.spoken
-        when (caption.stage) {
-            DictationEngine.Caption.Stage.LISTENING -> showCard(said, null, null, pulse = false)
-            DictationEngine.Caption.Stage.REWRITING -> showCard(said, "✨ Rewriting…", null, pulse = true)
-            DictationEngine.Caption.Stage.DONE -> {
-                val canUndo = caption.typed != null && caption.original != null && caption.typed != caption.original
-                undoable = caption.takeIf { canUndo }
-                showCard(said, "✨ " + caption.rewritten, if (canUndo) "Tap to put back your own words" else null, pulse = false)
-                cardOffersUndo = canUndo
-                hideCardIn(6000)
-                captionLine = "You: ${caption.spoken}  →  AI: ${caption.rewritten}"
-                getSystemService(NotificationManager::class.java).notify(NOTIF_ID, buildNotification())
-            }
-            DictationEngine.Caption.Stage.FAILED -> {
-                undoable = null
-                showCard(said, "⚠ ${caption.note ?: "AI rewrite failed"}. Typed your words.", null, pulse = false)
-                hideCardIn(6000)
-            }
-        }
-    }
-
-    private fun hideCardIn(ms: Long) {
-        mainHandler.removeCallbacks(hideCardLater)
-        mainHandler.postDelayed(hideCardLater, ms)
-    }
-
-    private fun showCard(spokenLine: String?, aiLine: String?, hint: String?, pulse: Boolean) {
-        if (bubble == null) return // the card belongs to the bubble; notification/island still show status
-        mainHandler.removeCallbacks(hideCardLater)
-        cardOffersUndo = false
+    private fun showDraftCard() {
+        if (bubble == null) return // the card belongs to the bubble; the draft is kept off screen meanwhile
         if (card == null && !createCard()) return
+        updateCard()
+    }
+
+    /** Status line, buttons and position for the current state. */
+    private fun updateCard() {
         val c = card ?: return
-        val maxW = minOf(dp(280), screenSize().first - dp(58) - dp(44))
-        fun TextView.set(value: String?) {
-            text = value.orEmpty()
-            maxWidth = maxW
-            visibility = if (value.isNullOrEmpty()) View.GONE else View.VISIBLE
+        val state = engine.state
+        val status = when {
+            processing -> "✨ Processing with AI…"
+            cardError != null -> cardError
+            cardEditing -> "Editing. Tap ✨ Send when ready"
+            state == DictationEngine.State.RECORDING -> "Listening… tap ✨ Send or the bubble when done"
+            state == DictationEngine.State.WORKING -> "Finishing…"
+            hasDraft -> "Tap the text to edit it, then ✨ Send"
+            else -> "Speak, then tap ✨ Send"
         }
-        cardSpoken?.set(spokenLine)
-        cardAi?.set(aiLine)
-        cardHint?.set(hint)
+        cardStatus?.text = status
+        cardStatus?.setTextColor(if (cardError != null && !processing) 0xFFF6AE2D.toInt() else 0xFF8AB4F8.toInt())
+        cardEdit?.isEnabled = !processing
+        cardEdit?.alpha = if (processing) 0.6f else 1f
+        val idle = state == DictationEngine.State.IDLE
+        btnClear?.visibility = if (processing) View.GONE else View.VISIBLE
+        btnMore?.visibility = if (!processing && idle) View.VISIBLE else View.GONE
+        btnSend?.visibility = if (processing) View.GONE else View.VISIBLE
+        btnSend?.text = if (cardError != null) "✨ Retry" else "✨ Send"
         cardAnim?.cancel(); cardAnim = null
-        c.alpha = 1f
-        if (pulse) cardAi?.let { ai ->
-            cardAnim = android.animation.ObjectAnimator.ofFloat(ai, View.ALPHA, 1f, 0.4f).apply {
+        cardStatus?.alpha = 1f
+        if (processing) cardStatus?.let { s ->
+            cardAnim = android.animation.ObjectAnimator.ofFloat(s, View.ALPHA, 1f, 0.4f).apply {
                 duration = 600
                 repeatCount = android.animation.ValueAnimator.INFINITE
                 repeatMode = android.animation.ValueAnimator.REVERSE
                 start()
             }
-        } else cardAi?.alpha = 1f
+        }
+        c.alpha = 1f
         moveCard()
     }
 
+    private fun cardWidth() = minOf(dp(290), screenSize().first - dp(58) - dp(44))
+
     private fun createCard(): Boolean {
-        fun line(color: Int, size: Float, lines: Int) = TextView(this).apply {
-            setTextColor(color)
-            textSize = size
-            maxLines = lines
-            ellipsize = android.text.TextUtils.TruncateAt.START // keep the newest words visible
+        val w = cardWidth()
+        val edit = EditText(this).apply {
+            setTextColor(0xFFFFFFFF.toInt())
+            setHintTextColor(0x80FFFFFF.toInt())
+            textSize = 15f
+            hint = "Speak… your words appear here"
+            background = null
+            setPadding(0, 0, 0, 0)
+            gravity = Gravity.TOP or Gravity.START
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+            maxLines = 6 // set after inputType (which resets it); longer drafts scroll inside the card
+            isVerticalScrollBarEnabled = true
+            layoutParams = LinearLayout.LayoutParams(w, LinearLayout.LayoutParams.WRAP_CONTENT)
+            setText(offscreenDraft)
         }
-        val spoken = line(0xB3FFFFFF.toInt(), 13f, 2)
-        val ai = line(0xFFFFFFFF.toInt(), 14f, 3).apply { setPadding(0, dp(3), 0, 0) }
-        val hint = line(0xFF8AB4F8.toInt(), 11f, 1).apply { setPadding(0, dp(4), 0, 0) }
-        val layout = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            setPadding(dp(12), dp(8), dp(12), dp(8))
+        offscreenDraft.setLength(0)
+        // A tap (not a scroll) on the text starts editing: the card takes focus so the keyboard opens.
+        val taps = android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapUp(e: MotionEvent): Boolean { startEditing(); return false }
+        })
+        edit.setOnTouchListener { _, e -> taps.onTouchEvent(e); false }
+        edit.setOnClickListener { startEditing() } // TalkBack double-taps arrive here, not as touches
+        edit.setOnKeyListener { _, code, ev ->
+            if (code == KeyEvent.KEYCODE_BACK && ev.action == KeyEvent.ACTION_UP && cardEditing) { finishEditing(); true } else false
+        }
+        val live = TextView(this).apply {
+            setTextColor(0xB3FFFFFF.toInt())
+            textSize = 13f
+            maxLines = 2
+            ellipsize = android.text.TextUtils.TruncateAt.START // newest words stay visible
+            maxWidth = w
+            setPadding(0, dp(4), 0, 0)
+            visibility = View.GONE
+        }
+        val status = TextView(this).apply {
+            textSize = 12f
+            maxWidth = w
+            setPadding(0, dp(6), 0, 0)
+        }
+        fun chip(label: String, primary: Boolean, onTap: () -> Unit) = TextView(this).apply {
+            text = label
+            textSize = 13f
+            setTextColor(if (primary) 0xFF202124.toInt() else 0xFFFFFFFF.toInt())
+            setPadding(dp(12), dp(6), dp(12), dp(6))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(14).toFloat()
+                setColor(if (primary) 0xFF8AB4F8.toInt() else 0x33FFFFFF)
+            }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { marginStart = dp(6) }
+            setOnClickListener { onTap() }
+        }
+        val clear = chip("✕", false) { discardDraft() }.apply { contentDescription = "Discard this text" }
+        val more = chip("🎤 More", false) {
+            log("Card: dictate more into the draft")
+            finishEditing()
+            if (engine.state == DictationEngine.State.IDLE) engine.toggle()
+        }
+        val send = chip("✨ Send", true) { sendOrStop("Send button") }
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.END
+            setPadding(0, dp(8), 0, 0)
+            addView(clear); addView(more); addView(send)
+        }
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(12), dp(10), dp(12), dp(10))
             background = GradientDrawable().apply {
                 cornerRadius = dp(14).toFloat()
                 setColor(0xF0202124.toInt())
             }
             elevation = dp(4).toFloat()
-            addView(spoken); addView(ai); addView(hint)
-            setOnClickListener { undoAi() }
+            addView(edit); addView(live); addView(status); addView(row)
+            // A touch anywhere else ends editing and hands the keyboard back to the app underneath.
+            setOnTouchListener { _, e -> if (e.actionMasked == MotionEvent.ACTION_OUTSIDE) finishEditing(); false }
         }
         val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            // Not focusable, so the app underneath keeps its text field and keyboard.
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            // Not focusable until the user taps the text, so the app underneath keeps its field and keyboard.
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+                WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
-        ).apply { gravity = Gravity.TOP or Gravity.START; x = 0; y = 0 }
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START; x = 0; y = 0
+            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN
+        }
         return runCatching { wm.addView(layout, lp) }.fold(
             onSuccess = {
-                card = layout; cardSpoken = spoken; cardAi = ai; cardHint = hint; cardParams = lp
+                card = layout; cardEdit = edit; cardLive = live; cardStatus = status
+                btnClear = clear; btnMore = more; btnSend = send; cardParams = lp
+                if (edit.length() > 0) scrollDraftToEnd()
                 true
             },
-            onFailure = { log("Caption card could not be shown: $it"); false },
+            onFailure = { log("Draft card could not be shown: $it"); edit.text?.let { offscreenDraft.append(it) }; false },
         )
+    }
+
+    private fun scrollDraftToEnd() {
+        val ed = cardEdit ?: return
+        ed.setSelection(ed.length())
+        ed.post {
+            val l = ed.layout ?: return@post
+            ed.scrollTo(0, (l.height - (ed.height - ed.totalPaddingTop - ed.totalPaddingBottom)).coerceAtLeast(0))
+        }
+    }
+
+    private fun startEditing() {
+        if (cardEditing || processing) return
+        val c = card ?: return
+        val lp = cardParams ?: return
+        cardEditing = true
+        log("Draft card: editing (card takes the keyboard)")
+        lp.flags = lp.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
+        // Keep the card in the top half so the keyboard doesn't cover it.
+        lp.y = lp.y.coerceAtMost(screenSize().second * 45 / 100 - c.height).coerceAtLeast(dp(24))
+        runCatching { wm.updateViewLayout(c, lp) }
+        cardEdit?.let { ed ->
+            ed.requestFocus()
+            ed.postDelayed({ getSystemService(InputMethodManager::class.java).showSoftInput(ed, 0) }, 150)
+        }
+        updateCard()
+    }
+
+    private fun finishEditing() {
+        if (!cardEditing) return
+        cardEditing = false
+        log("Draft card: editing done (keyboard goes back to the app)")
+        cardEdit?.let { ed ->
+            getSystemService(InputMethodManager::class.java).hideSoftInputFromWindow(ed.windowToken, 0)
+            ed.clearFocus()
+        }
+        val c = card
+        val lp = cardParams
+        if (c != null && lp != null) {
+            lp.flags = lp.flags or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+            runCatching { wm.updateViewLayout(c, lp) }
+        }
+        updateCard()
     }
 
     /** Beside the bubble, on the side facing the middle of the screen, vertically centred on it. */
     private fun moveCard() {
+        if (cardEditing) return // stays where the keyboard can't cover it
         val c = card ?: return
         val lp = cardParams ?: return
         val bp = params ?: return
@@ -460,29 +702,102 @@ class BubbleService : Service(), DictationEngine.Listener {
     }
 
     private fun hideCard() {
-        mainHandler.removeCallbacks(hideCardLater)
+        finishEditing()
         cardAnim?.cancel(); cardAnim = null
+        // Keep any draft text (e.g. the bubble was turned off mid-draft).
+        cardEdit?.text?.let { if (it.isNotBlank()) { offscreenDraft.setLength(0); offscreenDraft.append(it) } }
         card?.let { runCatching { wm.removeView(it) } }
-        card = null; cardSpoken = null; cardAi = null; cardHint = null; cardParams = null
-        cardOffersUndo = false
+        card = null; cardEdit = null; cardLive = null; cardStatus = null
+        btnClear = null; btnMore = null; btnSend = null; cardParams = null
     }
 
-    /** Tap on the card right after a rewrite: swap the AI's text in the field back to what was said. */
-    private fun undoAi() {
-        val c = undoable
-        if (!cardOffersUndo || c == null || c.typed == null || c.original == null) {
-            log("Caption card tapped (nothing to undo)")
-            return
+    // ---- Long-press quick menu ----
+
+    private var menu: LinearLayout? = null
+    private val hideMenuLater = Runnable { hideMenu() }
+
+    private fun showQuickMenu() {
+        hideMenu()
+        finishEditing()
+        val bp = params ?: return
+        log("Bubble long-press: quick menu")
+        bubble?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+        fun item(label: String, onTap: () -> Unit) = TextView(this).apply {
+            text = label
+            textSize = 15f
+            setTextColor(0xFFFFFFFF.toInt())
+            setPadding(dp(16), dp(12), dp(20), dp(12))
+            setOnClickListener { hideMenu(); onTap() }
         }
-        log("Caption card tapped: undo AI rewrite #${c.id}")
-        if (LiveTyper.replaceLast(c.typed, c.original)) {
-            engine.rewriteUndone(c.typed, c.original)
-            undoable = null
-            showCard("🎤 " + c.spoken, "↩ Your own words are back", null, pulse = false)
-            hideCardIn(2500)
+        val aiOn = prefs.polishEnabled
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(4), 0, dp(4))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(14).toFloat()
+                setColor(0xF5202124.toInt())
+            }
+            elevation = dp(6).toFloat()
+            addView(item(if (aiOn) "✨ Turn AI rewrite off" else "✨ Turn AI rewrite on") { setAiRewrite(!aiOn) })
+            addView(item("⚙ Open Speaker") { openApp() })
+            setOnTouchListener { _, e -> if (e.actionMasked == MotionEvent.ACTION_OUTSIDE) hideMenu(); false }
+        }
+        val lp = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        ).apply { gravity = Gravity.TOP or Gravity.START }
+        layout.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+        val size = dp(58)
+        val (sw, sh) = screenSize()
+        lp.x = if (bp.x + size / 2 > sw / 2) bp.x - layout.measuredWidth - dp(8) else bp.x + size + dp(8)
+        lp.y = bp.y.coerceIn(dp(24), (sh - layout.measuredHeight - dp(24)).coerceAtLeast(dp(24)))
+        runCatching { wm.addView(layout, lp) }
+            .onSuccess { menu = layout; mainHandler.postDelayed(hideMenuLater, 6000) }
+            .onFailure { log("Quick menu could not be shown: $it"); openApp() }
+    }
+
+    private fun hideMenu() {
+        mainHandler.removeCallbacks(hideMenuLater)
+        menu?.let { runCatching { wm.removeView(it) } }
+        menu = null
+    }
+
+    private fun setAiRewrite(on: Boolean) {
+        if (on) {
+            val llm = LlmProvider.from(prefs.llmProvider)
+            if (prefs.apiKey(llm.vendor).isBlank() || prefs.llmModel(llm).isBlank()) {
+                log("Quick menu: AI rewrite can't be turned on yet (no key or model for ${llm.id})")
+                toast("Set up AI rewrite in Speaker first: provider, API key and model")
+                openApp()
+                return
+            }
+            prefs.polishEnabled = true
+            log("Quick menu: AI rewrite ON")
+            toast(if (engine.state == DictationEngine.State.IDLE) "AI rewrite on. Speak, then tap ✨ Send or the bubble"
+            else "AI rewrite on from your next dictation")
         } else {
-            toast("Can't undo this one: something else was typed after it")
+            prefs.polishEnabled = false
+            log("Quick menu: AI rewrite OFF (draft ${draftText().length} chars, state=${engine.state})")
+            when {
+                draftSession && engine.state != DictationEngine.State.IDLE -> {
+                    typeRawWhenIdle = true
+                    sendWhenIdle = false
+                    engine.stopIfActive("AI rewrite turned off")
+                    toast("AI rewrite off. Typing what you said so far")
+                }
+                hasDraft && !processing -> {
+                    val text = draftText().trim()
+                    clearDraft(); hideCard()
+                    deliver(text, ai = false)
+                    toast("AI rewrite off. Typed your words as they were")
+                }
+                else -> toast("AI rewrite off. Words are typed as you speak")
+            }
         }
+        statusChanged()
     }
 
     // ---- Bubble ----
@@ -518,8 +833,15 @@ class BubbleService : Service(), DictationEngine.Listener {
         view.setOnTouchListener(BubbleTouch(lp))
         // Taps (and TalkBack double-taps, which never reach onTouch) arrive here.
         view.setOnClickListener {
-            log("Bubble tap (state=${engine.state})")
-            engine.toggle()
+            log("Bubble tap (state=${engine.state} draft=$draftSession hasDraft=$hasDraft processing=$processing)")
+            hideMenu()
+            when {
+                processing -> toast("Still processing with AI…")
+                // AI mode: the bubble is the Send button (stops listening first).
+                draftSession && engine.state != DictationEngine.State.IDLE -> sendOrStop("Bubble tap")
+                engine.state == DictationEngine.State.IDLE && hasDraft -> sendDraft("Bubble tap")
+                else -> engine.toggle()
+            }
         }
         wm.addView(view, lp)
         log("Bubble overlay added at x=${lp.x} y=${lp.y} size=${size}px screen=${sw}x$sh")
@@ -530,21 +852,27 @@ class BubbleService : Service(), DictationEngine.Listener {
 
     private fun renderBubble() {
         val b = bubble ?: return
-        val (icon, bg) = when (currentState) {
-            DictationEngine.State.IDLE -> R.drawable.ic_mic to R.drawable.bg_mic_idle
-            DictationEngine.State.RECORDING -> R.drawable.ic_stop to R.drawable.bg_mic_recording
-            DictationEngine.State.WORKING -> R.drawable.ic_dots to R.drawable.bg_mic_working
+        val (icon, bg) = when {
+            processing -> R.drawable.ic_dots to R.drawable.bg_mic_working
+            else -> when (currentState) {
+                DictationEngine.State.IDLE -> R.drawable.ic_mic to R.drawable.bg_mic_idle
+                DictationEngine.State.RECORDING -> R.drawable.ic_stop to R.drawable.bg_mic_recording
+                DictationEngine.State.WORKING -> R.drawable.ic_dots to R.drawable.bg_mic_working
+            }
         }
         b.setImageResource(icon)
         b.setBackgroundResource(bg)
-        b.contentDescription = when (currentState) {
-            DictationEngine.State.IDLE -> "Start dictation"
-            DictationEngine.State.RECORDING -> "Stop dictation"
-            DictationEngine.State.WORKING -> "Finishing dictation"
+        b.contentDescription = when {
+            processing -> "Processing with AI"
+            currentState == DictationEngine.State.IDLE && hasDraft -> "Send to AI"
+            currentState == DictationEngine.State.IDLE -> "Start dictation"
+            currentState == DictationEngine.State.RECORDING && draftSession -> "Stop and send to AI"
+            currentState == DictationEngine.State.RECORDING -> "Stop dictation"
+            else -> "Finishing dictation"
         }
-        // Pulse for the whole time we're listening, so the bubble (not sounds) shows it's still on.
+        // Pulse for the whole time we're listening (or the AI is working), so the bubble shows it.
         // Scales inward so it never gets clipped by the overlay window's edges.
-        if (currentState == DictationEngine.State.RECORDING) {
+        if (currentState == DictationEngine.State.RECORDING || processing) {
             if (pulse == null) {
                 pulse = android.animation.ObjectAnimator.ofPropertyValuesHolder(
                     b,
@@ -605,7 +933,7 @@ class BubbleService : Service(), DictationEngine.Listener {
         private val longPress = Runnable {
             if (!dragging) {
                 longPressed = true
-                openApp()
+                showQuickMenu()
             }
         }
 
@@ -670,7 +998,7 @@ class BubbleService : Service(), DictationEngine.Listener {
     private fun log(msg: String) = android.util.Log.i("Speaker.bubble", msg)
 
     private fun openApp() {
-        log("Bubble long-press: opening settings")
+        log("Opening Speaker")
         startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
@@ -698,14 +1026,13 @@ class BubbleService : Service(), DictationEngine.Listener {
             DictationEngine.State.RECORDING -> "Listening continuously. Tap Stop when done" to "⏹ Stop"
             DictationEngine.State.WORKING -> "Finishing last phrase…" to "…"
         }
-        val caption = captionLine
-        val showCaption = caption != null && prefs.showCaptions && currentState != DictationEngine.State.IDLE
         val builder = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_mic)
             .setContentTitle("Speaker")
             .setContentText(when {
-                rewriting -> "✨ Rewriting with AI… the text is typed when it's ready"
-                showCaption -> caption
+                processing -> "✨ Processing with AI… the text is typed when it's ready"
+                draftSession && currentState == DictationEngine.State.RECORDING ->
+                    "Listening (AI rewrite). Tap the bubble or ✨ Send when done"
                 else -> text
             })
             .setOngoing(true)
@@ -727,15 +1054,6 @@ class BubbleService : Service(), DictationEngine.Listener {
             builder
                 .addAction(Notification.Action.Builder(null, action, toggle).build())
                 .addAction(Notification.Action.Builder(null, "Quit", quit).build())
-        }
-        if (showCaption) {
-            // Dictated words are private: the lock screen gets the plain status instead.
-            val public = Notification.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_mic)
-                .setContentTitle("Speaker")
-                .setContentText(text)
-                .build()
-            builder.setVisibility(Notification.VISIBILITY_PRIVATE).setPublicVersion(public)
         }
         return builder.build()
     }

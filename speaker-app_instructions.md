@@ -36,13 +36,15 @@ Play Store release steps and policy notes: `docs/play-store-release-checklist.md
   `release()`). Built-in `SpeechRecognizer`: Android 13+ streams the app-owned mic through `MicPipe`
   (EXTRA_AUDIO_SOURCE, segmented session). One watchdog loop: restarts the recognizer when it closes the pipe,
   stops reporting mic levels for 6 s, or goes 90 s without callbacks.
-  AI rewrite: spoken words are never typed. Each settled phrase is queued on the worker (in order), and
-  only the rewritten text is typed; `onRewriting()` drives the "Rewriting…" label by the bubble. If a rewrite
-  fails, the original words are typed with a toast. Logs: grep `AI REWRITE` (each step, `cause=` on failure,
-  per-session `AI REWRITE SUMMARY`) and `Speaker.ai` (finish/stop reasons, Gemini blocks).
-  `onCaption(Caption)` reports each sentence (LISTENING → REWRITING → DONE/FAILED): `BubbleService` shows the
-  caption card beside the bubble (tap = undo AI via `LiveTyper.replaceLast`, only if it's still the last
-  thing typed) and the "You: … → AI: …" notification line (lock screen gets a public version without it).
+  AI rewrite (`draftMode`, fixed per session from `Prefs.polishEnabled`): nothing is typed while you speak.
+  Words go out through `onDraft(phrase, isFinal)`; the listener keeps the draft and later calls
+  `rewrite(fullText)` once for the whole text (no per-phrase rewriting: chunks lose context). Logs: grep
+  `AI REWRITE` (queued/sending/OK/FAILED `cause=`) and `Speaker.ai` (finish/stop reasons, Gemini blocks).
+  `BubbleService` draft card (only in AI mode, never shows the AI's text): editable, scrolls after 6 lines;
+  tapping the text makes the overlay focusable for the keyboard, an outside touch hands focus back.
+  ✨ Send or a bubble tap stops listening and sends; the bubble shows Processing; the result goes through
+  `LiveTyper.insert` (focused field, else clipboard). On failure the draft stays for Retry. Bubble long-press =
+  quick menu (AI rewrite on/off, Open Speaker). Bubble hidden = the draft is sent when the session ends.
   `RewriteHistory`: last 50 pairs, phone-only, behind `Prefs.keepHistory`; shown in "Recent dictations".
 - `MicPipe`: owns the AudioRecord; reports pipe closed by recognizer, mic silenced by another app, mic failure;
   reopens a dead AudioRecord.
@@ -51,7 +53,7 @@ Play Store release steps and policy notes: `docs/play-store-release-checklist.md
 - `MicTileService`: Quick Settings tile that toggles the running service.
 - `TypeAccessibilityService` + `LiveTyper`: types into the focused field via the accessibility InputMethod
   (Android 13+), else ACTION_SET_TEXT / ACTION_PASTE, else clipboard.
-- `Transcriber` / `Http`: provider REST calls with `HttpURLConnection` + `org.json` (AI rewrite times out at 20 s).
+- `Transcriber` / `Http`: provider REST calls with `HttpURLConnection` + `org.json` (AI rewrite times out at 30 s).
 - `Prefs`: SharedPreferences (excluded from backup and device transfer), provider enums and default models.
 <<<<<<< HEAD
 - `RemoteLog` (name kept to ease merges from dev): local in-memory log ring for Copy/Share logs and the crash
