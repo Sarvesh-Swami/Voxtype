@@ -164,6 +164,19 @@ class MainActivity : Activity(), DictationEngine.Listener {
             ui("Toggle: AI rewrite = $on")
             if (on) showPromptDialog(enabling = true) else prefs.polishEnabled = false
         }
+        findViewById<Switch>(R.id.swCaptions).setOnCheckedChangeListener { _, on ->
+            if (prefs.showCaptions == on) return@setOnCheckedChangeListener
+            ui("Toggle: live captions = $on"); prefs.showCaptions = on
+        }
+        findViewById<Switch>(R.id.swHistory).setOnCheckedChangeListener { _, on ->
+            if (prefs.keepHistory == on) return@setOnCheckedChangeListener
+            ui("Toggle: keep recent dictations = $on"); prefs.keepHistory = on
+            if (!on) {
+                RewriteHistory.clear(this)
+                toast("Recent dictations cleared and turned off")
+            }
+        }
+        findViewById<Button>(R.id.btnHistory).setOnClickListener { ui("Tap: Recent dictations"); showHistory() }
         findViewById<Button>(R.id.btnEditPrompt).setOnClickListener {
             ui("Tap: Edit session prompt")
             showPromptDialog(enabling = false)
@@ -497,6 +510,8 @@ class MainActivity : Activity(), DictationEngine.Listener {
         swStopOnBlur.isChecked = prefs.stopOnFocusLoss
         swIsland.isChecked = prefs.islandMedia
         swShowBubble.isChecked = prefs.showBubble
+        findViewById<Switch>(R.id.swCaptions).isChecked = prefs.showCaptions
+        findViewById<Switch>(R.id.swHistory).isChecked = prefs.keepHistory
         edtPrompt.setText(prefs.polishPrompt)
         edtCustomUrl.setText(prefs.customBaseUrl)
         keyFields.forEach { (vendor, field) -> field.setText(prefs.apiKey(vendor)) }
@@ -589,6 +604,63 @@ class MainActivity : Activity(), DictationEngine.Listener {
     }
 
     /** Short in-app privacy summary (the full policy must also be linked in the Play listing). */
+    /** "Recent dictations": what you said and what the AI wrote, newest first. Tap a card to copy. */
+    private fun showHistory() {
+        val entries = RewriteHistory.load(this)
+        val list = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(8), dp(20), dp(8))
+        }
+        if (entries.isEmpty()) {
+            list.addView(TextView(this, null, 0, R.style.Body).apply {
+                text = if (prefs.keepHistory) "Nothing yet. Dictate with AI rewrite on and your sentences show up here."
+                else "Recent dictations are turned off."
+            })
+        }
+        val timeFmt = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT)
+        entries.forEach { e ->
+            val item = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(0, dp(10), 0, dp(10))
+            }
+            item.addView(TextView(this, null, 0, R.style.Label).apply {
+                text = timeFmt.format(java.util.Date(e.time)) + if (e.rewritten == null) "  ·  AI FAILED" else ""
+            })
+            item.addView(TextView(this, null, 0, R.style.Body).apply { text = "🎤 ${e.spoken}" })
+            item.addView(TextView(this).apply {
+                text = if (e.rewritten != null) "✨ ${e.rewritten}" else "⚠ ${e.note ?: "AI rewrite failed"}"
+                textSize = 15f
+                setTextColor(getColor(R.color.text_primary))
+                setPadding(0, dp(4), 0, 0)
+            })
+            item.setOnClickListener {
+                val copyText = e.rewritten ?: e.spoken
+                copy("Dictation", copyText)
+                ui("Recent dictations: copied an entry (${copyText.length} chars)")
+                toast(if (e.rewritten != null) "AI version copied" else "Your words copied")
+            }
+            item.setOnLongClickListener {
+                copy("Dictation", e.spoken)
+                toast("Your original words copied")
+                true
+            }
+            list.addView(item)
+        }
+        val dialog = android.app.AlertDialog.Builder(this)
+            .setTitle("Recent dictations")
+            .setView(android.widget.ScrollView(this).apply { addView(list) })
+            .setPositiveButton("Close", null)
+        if (entries.isNotEmpty()) {
+            dialog.setMessage("Tap to copy the AI version, long-press to copy what you said. Stored only on this phone.")
+            dialog.setNeutralButton("Clear all") { _, _ ->
+                RewriteHistory.clear(this)
+                ui("Recent dictations cleared")
+                toast("Recent dictations cleared")
+            }
+        }
+        dialog.show()
+    }
+
     private fun showPrivacy() {
         val policyUrl = getString(R.string.privacy_policy_url)
         val builder = android.app.AlertDialog.Builder(this)
@@ -599,7 +671,9 @@ class MainActivity : Activity(), DictationEngine.Listener {
                     "your phone's speech service (Android/Google). With an API engine, each phrase is sent " +
                     "straight from your phone to the provider you chose (OpenAI, Groq, Google Gemini, Deepgram " +
                     "or your custom URL), using your own key.\n" +
-                    "• AI rewrite (optional): your transcribed text and your prompt go to the AI provider you chose.\n" +
+                    "• AI rewrite (optional): your transcribed text and your prompt go to the AI provider you chose. " +
+                    "If \"Keep recent dictations\" is on, your last 50 sentences and their AI versions are kept on " +
+                    "this phone only (never sent or backed up) until you clear them.\n" +
                     "• API keys and settings stay on this phone (not backed up) and go only to that provider.\n" +
                     "• Accessibility: only types your dictation into the focused field; nothing is read or collected.\n" +
                     "• Display over other apps: shows the floating mic bubble.\n\n" +
@@ -724,6 +798,17 @@ class MainActivity : Activity(), DictationEngine.Listener {
         if (isFinal) {
             resultBase = shown
             ui("In-app phrase settled: ${text.length} chars")
+        }
+    }
+
+    /** In-app test: the hint under the mic shows what you said and the AI's version. */
+    override fun onCaption(caption: DictationEngine.Caption) {
+        if (!prefs.showCaptions) return
+        txtTryHint.text = when (caption.stage) {
+            DictationEngine.Caption.Stage.LISTENING -> "🎤 ${caption.spoken}"
+            DictationEngine.Caption.Stage.REWRITING -> "🎤 ${caption.spoken}\n✨ Rewriting…"
+            DictationEngine.Caption.Stage.DONE -> "🎤 ${caption.spoken}\n✨ ${caption.rewritten}"
+            DictationEngine.Caption.Stage.FAILED -> "🎤 ${caption.spoken}\n⚠ ${caption.note ?: "AI rewrite failed"}. Typed your words."
         }
     }
 

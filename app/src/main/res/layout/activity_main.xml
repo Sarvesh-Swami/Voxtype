@@ -395,6 +395,24 @@
                         android:inputType="textMultiLine"
                         android:minLines="3"
                         android:textSize="13sp" />
+
+                    <Switch
+                        android:id="@+id/swCaptions"
+                        style="@style/SwitchRow"
+                        android:layout_marginTop="12dp"
+                        android:text="Show live captions next to the bubble (what you said → AI version, tap to undo)" />
+
+                    <Switch
+                        android:id="@+id/swHistory"
+                        style="@style/SwitchRow"
+                        android:text="Keep recent dictations on this phone" />
+
+                    <Button
+                        android:id="@+id/btnHistory"
+                        style="@style/ButtonTonal"
+                        android:layout_width="match_parent"
+                        android:layout_marginTop="8dp"
+                        android:text="Recent dictations" />
                 </LinearLayout>
             </LinearLayout>
 

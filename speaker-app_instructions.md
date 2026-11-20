@@ -40,6 +40,10 @@ Play Store release steps and policy notes: `docs/play-store-release-checklist.md
   only the rewritten text is typed; `onRewriting()` drives the "Rewriting…" label by the bubble. If a rewrite
   fails, the original words are typed with a toast. Logs: grep `AI REWRITE` (each step, `cause=` on failure,
   per-session `AI REWRITE SUMMARY`) and `Speaker.ai` (finish/stop reasons, Gemini blocks).
+  `onCaption(Caption)` reports each sentence (LISTENING → REWRITING → DONE/FAILED): `BubbleService` shows the
+  caption card beside the bubble (tap = undo AI via `LiveTyper.replaceLast`, only if it's still the last
+  thing typed) and the "You: … → AI: …" notification line (lock screen gets a public version without it).
+  `RewriteHistory`: last 50 pairs, phone-only, behind `Prefs.keepHistory`; shown in "Recent dictations".
 - `MicPipe`: owns the AudioRecord; reports pipe closed by recognizer, mic silenced by another app, mic failure;
   reopens a dead AudioRecord.
 - `BubbleService`: microphone-type foreground service; overlay bubble, notification, optional MediaSession for

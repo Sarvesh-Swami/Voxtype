@@ -40,6 +40,25 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         fun onError(message: String)
         /** AI rewrite is working on dictated text (nothing is typed until it's done). */
         fun onRewriting(active: Boolean) {}
+        /** AI rewrite progress for one sentence: what was said, and (when done) what the AI made of it. */
+        fun onCaption(caption: Caption) {}
+    }
+
+    /**
+     * One sentence in AI rewrite mode. [id] ties the stages together. [typed] is exactly what was
+     * typed into the field (with its leading space), and [original] what would have been typed
+     * without the AI; both are set when DONE, for "undo AI".
+     */
+    data class Caption(
+        val id: Int,
+        val stage: Stage,
+        val spoken: String,
+        val rewritten: String? = null,
+        val note: String? = null,
+        val typed: String? = null,
+        val original: String? = null,
+    ) {
+        enum class Stage { LISTENING, REWRITING, DONE, FAILED }
     }
 
     /** RECORDING = session active (listening). WORKING = stopping, finishing the last phrase. */
@@ -64,7 +83,7 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
     // text is typed. If the rewrite fails, the original words are typed so nothing is lost.
     private var aiPending = 0 // rewrites queued or in flight (main thread)
     private var finishWhenAiDone = false
-    private var aiSeq = 0
+    private val aiSeq = java.util.concurrent.atomic.AtomicInteger(0)
     @Volatile private var aiOk = 0
     @Volatile private var aiFailed = 0
     @Volatile private var aiTotalMs = 0L
@@ -242,7 +261,7 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         if (aiPending > 0) listener.onRewriting(false)
         aiPending = 0
         finishWhenAiDone = false
-        aiSeq = 0; aiOk = 0; aiFailed = 0; aiTotalMs = 0; aiMaxMs = 0
+        aiSeq.set(0); aiOk = 0; aiFailed = 0; aiTotalMs = 0; aiMaxMs = 0
         builtinErrorStreak = 0
         builtinRestarts = 0
         partialCount = 0
@@ -376,23 +395,27 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         if (aiLive) {
             // Kept for the rewrite only: the spoken words never reach the text field.
             Log.d(tag, "Live (held for AI rewrite, not typed): ${full.length} chars")
+            listener.onCaption(Caption(aiSeq.get() + 1, Caption.Stage.LISTENING, t))
             return
         }
         Log.d(tag, "Live: ${spoken(full.takeLast(80))} (${full.length} chars)")
         listener.onText(full, false, sessionText.toString() + full)
     }
 
-    /** Settled text for the phrase in progress (replaces whatever live text was shown). */
-    private fun emitFinal(raw: String, what: String) {
+    /**
+     * Settled text for the phrase in progress (replaces whatever live text was shown). Returns the
+     * exact text typed, or null when nothing was typed now (empty, or handed to the AI rewrite).
+     */
+    private fun emitFinal(raw: String, what: String): String? {
         val t = raw.trim()
         if (t.isEmpty()) {
             if (phraseText.isNotEmpty()) {
                 Log.i(tag, "Final for $what is empty; using the live words instead")
                 settleLivePhrase(what)
             }
-            return
+            return null
         }
-        if (aiLive) { aiRewrite(t, what); return }
+        if (aiLive) { aiRewrite(t, what); return null }
         val full = (phrasePrefix ?: spaceBefore(t)) + t
         sessionText.append(full)
         polishContext = sessionText.toString()
@@ -401,6 +424,7 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         phraseText = ""
         Log.i(tag, "Final ($what): ${spoken(full)} (session ${sessionText.length} chars)")
         listener.onText(full, true, sessionText.toString())
+        return full
     }
 
     /** Treats the live text currently on screen as final (used when the recognizer gives no final). */
@@ -428,31 +452,58 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         phrasePrefix = null
         phraseText = ""
         val sid = session
-        val n = ++aiSeq
+        val n = aiSeq.incrementAndGet()
         val queuedAt = SystemClock.elapsedRealtime()
         rewriteStarted()
         Log.i(tag, "AI REWRITE #$n queued ($what): ${raw.length} chars, ahead in queue=${aiPending - 1}")
+        listener.onCaption(Caption(n, Caption.Stage.REWRITING, raw))
         onWorker {
             val waitMs = SystemClock.elapsedRealtime() - queuedAt
             if (waitMs > 300) Log.i(tag, "AI REWRITE #$n waited ${waitMs} ms for earlier rewrites")
-            val (text, note) = maybePolish(raw, "#$n")
+            val result = maybePolish(raw, "#$n")
             post {
                 rewriteDone()
                 if (sid != session) {
                     Log.w(tag, "AI REWRITE #$n result dropped: session $sid already ended")
                     return@post
                 }
-                val full = spaceBefore(text) + text
+                val prefix = spaceBefore(result.text)
+                val full = prefix + result.text
                 sessionText.append(full)
                 polishContext = sessionText.toString()
                 phrasesDone++
                 Log.i(tag, "AI REWRITE #$n typed after ${SystemClock.elapsedRealtime() - queuedAt} ms total " +
-                    "(${if (note == null) "rewritten" else "ORIGINAL words, rewrite failed"}): ${spoken(full)}")
+                    "(${if (result.ok) "rewritten" else "ORIGINAL words, rewrite failed"}): ${spoken(full)}")
                 listener.onText(full, true, sessionText.toString())
-                note?.let { listener.onError(it) }
+                reportRewrite(n, raw, result, typed = full, original = prefix + raw)
+                result.note?.let { listener.onError(it) }
                 if (finishWhenAiDone && aiPending == 0) finishSession()
             }
         }
+    }
+
+    /** Caption + history for a finished rewrite (main thread). */
+    private fun reportRewrite(n: Int, raw: String, result: Polished, typed: String?, original: String?) {
+        if (result.ok) {
+            listener.onCaption(Caption(n, Caption.Stage.DONE, raw, result.text, typed = typed, original = original))
+            RewriteHistory.add(ctx, raw, result.text, null)
+        } else {
+            listener.onCaption(Caption(n, Caption.Stage.FAILED, raw, note = result.why))
+            RewriteHistory.add(ctx, raw, null, result.why)
+        }
+    }
+
+    /**
+     * "Undo AI": the field now shows [original] instead of [typed] (the caller already swapped it).
+     * Keeps the session text (clipboard fallback, AI context) in step with the field.
+     */
+    fun rewriteUndone(typed: String, original: String) {
+        if (sessionText.endsWith(typed)) {
+            sessionText.setLength(sessionText.length - typed.length)
+            sessionText.append(original)
+            polishContext = sessionText.toString()
+        }
+        Log.i(tag, "AI rewrite undone by the user: ${typed.length} -> ${original.length} chars")
     }
 
     // ---------------- API providers (recorded phrases) ----------------
@@ -470,14 +521,17 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
                 Log.i(tag, "Phrase #${info.index}: dropped likely hallucination ${spoken(raw)}")
                 return
             }
-            val polishing = prefs.polishEnabled && !polishOff
-            if (polishing) post { rewriteStarted() }
-            val (text, note) = maybePolish(raw, "phrase #${info.index}")
+            val polishing = prefs.polishEnabled && raw.isNotEmpty()
+            val n = if (polishing) aiSeq.incrementAndGet() else 0
+            if (polishing) post { rewriteStarted(); listener.onCaption(Caption(n, Caption.Stage.REWRITING, raw)) }
+            val result = maybePolish(raw, "phrase #${info.index}")
             post {
                 if (polishing) rewriteDone()
                 if (sid != session) return@post
-                emitFinal(text, "phrase #${info.index}")
-                note?.let { listener.onError(it) }
+                val full = emitFinal(result.text, "phrase #${info.index}")
+                if (polishing) reportRewrite(n, raw, result, typed = full,
+                    original = full?.let { it.takeWhile(Char::isWhitespace) + raw })
+                result.note?.let { listener.onError(it) }
                 if (finishWhenAiDone && aiPending == 0) finishSession()
             }
         } catch (e: Exception) {
@@ -498,11 +552,14 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
     }
 
     /** Runs on [worker]. Returns the text to use and an optional note for the user. */
-    private fun maybePolish(raw: String, label: String): Pair<String, String?> {
-        if (raw.isEmpty() || !prefs.polishEnabled) return raw to null
+    /** Result of one rewrite: [text] to type, [note] to toast, [ok] = the AI's text, [why] = short failure reason. */
+    private data class Polished(val text: String, val note: String?, val ok: Boolean, val why: String?)
+
+    private fun maybePolish(raw: String, label: String): Polished {
+        if (raw.isEmpty() || !prefs.polishEnabled) return Polished(raw, null, false, null)
         if (polishOff) {
             Log.w(tag, "AI REWRITE $label skipped: rewrite was turned off earlier this session; typing original words")
-            return raw to null
+            return Polished(raw, null, false, "AI rewrite is off for this session")
         }
         val llm = LlmProvider.from(prefs.llmProvider)
         val model = prefs.llmModel(llm)
@@ -518,7 +575,7 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
             if (cleaned.isEmpty()) {
                 Log.w(tag, "AI REWRITE $label FAILED cause=EMPTY_REPLY: ${llm.id}/$model answered with no text in $ms ms " +
                     "(reply was ${reply.length} chars before cleanup); typing original words")
-                return raw to "AI rewrite returned nothing. Typed your original words."
+                return Polished(raw, "AI rewrite returned nothing. Typed your original words.", false, "AI returned nothing")
             }
             Log.i(tag, "AI REWRITE $label OK in $ms ms: ${raw.length} -> ${cleaned.length} chars ${spoken(cleaned)}")
             if (cleaned.length > raw.length * 3 && cleaned.length > 60) {
@@ -526,7 +583,7 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
                     "dictation. The model may be answering instead of rewriting; check the session prompt")
             }
             if (ms > 5000) Log.w(tag, "AI REWRITE $label SLOW: $ms ms. A faster model (e.g. Groq, a mini/flash/haiku model) cuts the delay")
-            cleaned to null
+            Polished(cleaned, null, true, null)
         } catch (e: Exception) {
             val ms = SystemClock.elapsedRealtime() - t0
             recordRewrite(ms, ok = false)
@@ -535,9 +592,9 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
             if (hard) {
                 polishOff = true
                 Log.w(tag, "AI REWRITE turned OFF for the rest of session $session (cause=$cause). Original words will be typed")
-                raw to "AI rewrite off for this session: $hint"
+                Polished(raw, "AI rewrite off for this session: $hint", false, hint)
             } else {
-                raw to "AI rewrite failed: $hint. Typed your original words."
+                Polished(raw, "AI rewrite failed: $hint. Typed your original words.", false, hint)
             }
         }
     }
