@@ -38,28 +38,16 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
          */
         fun onText(text: String, isFinal: Boolean, sessionText: String)
         fun onError(message: String)
-        /** AI rewrite is working on dictated text (nothing is typed until it's done). */
-        fun onRewriting(active: Boolean) {}
-        /** AI rewrite progress for one sentence: what was said, and (when done) what the AI made of it. */
-        fun onCaption(caption: Caption) {}
+        /**
+         * AI rewrite mode ([draftMode]): nothing is typed. Words of the phrase in progress arrive with
+         * isFinal=false (each call replaces the previous one), then the settled phrase once with
+         * isFinal=true. [phrase] is trimmed; the listener keeps the draft and sends it with [rewrite].
+         */
+        fun onDraft(phrase: String, isFinal: Boolean) {}
     }
 
-    /**
-     * One sentence in AI rewrite mode. [id] ties the stages together. [typed] is exactly what was
-     * typed into the field (with its leading space), and [original] what would have been typed
-     * without the AI; both are set when DONE, for "undo AI".
-     */
-    data class Caption(
-        val id: Int,
-        val stage: Stage,
-        val spoken: String,
-        val rewritten: String? = null,
-        val note: String? = null,
-        val typed: String? = null,
-        val original: String? = null,
-    ) {
-        enum class Stage { LISTENING, REWRITING, DONE, FAILED }
-    }
+    /** Result of [rewrite]: [text] is the AI's version when [ok], else the input; [why] says what failed. */
+    data class Rewrite(val text: String, val ok: Boolean, val why: String?)
 
     /** RECORDING = session active (listening). WORKING = stopping, finishing the last phrase. */
     enum class State { IDLE, RECORDING, WORKING }
@@ -75,29 +63,15 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
     private val sessionText = StringBuilder()
     @Volatile private var phrasesDone = 0
     @Volatile private var phraseErrors = 0
-    @Volatile private var polishOff = false
-    @Volatile private var polishContext = "" // session text so far, sent to the LLM as context
 
-    // AI rewrite: the spoken words are NEVER typed. Live words are only kept here; each settled
-    // phrase goes to the LLM (queued on [worker], so phrases stay in order) and only the rewritten
-    // text is typed. If the rewrite fails, the original words are typed so nothing is lost.
-    private var aiPending = 0 // rewrites queued or in flight (main thread)
-    private var finishWhenAiDone = false
+    /**
+     * AI rewrite mode for this session (fixed when it starts): spoken words are NEVER typed. They go
+     * to the listener as a draft ([Listener.onDraft]); the user edits it and sends the whole text to
+     * the AI in one call ([rewrite]), so the model sees the full context.
+     */
+    var draftMode = false
+        private set
     private val aiSeq = java.util.concurrent.atomic.AtomicInteger(0)
-    @Volatile private var aiOk = 0
-    @Volatile private var aiFailed = 0
-    @Volatile private var aiTotalMs = 0L
-    @Volatile private var aiMaxMs = 0L
-    private val aiLive get() = prefs.polishEnabled && !polishOff && SttProvider.from(prefs.sttProvider) == SttProvider.BUILTIN
-
-    private fun rewriteStarted() {
-        if (aiPending++ == 0) listener.onRewriting(true)
-    }
-
-    private fun rewriteDone() {
-        aiPending = (aiPending - 1).coerceAtLeast(0)
-        if (aiPending == 0) listener.onRewriting(false)
-    }
 
     // Current (unsettled) phrase
     private var phrasePrefix: String? = null
@@ -256,12 +230,7 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         phraseText = ""
         phrasesDone = 0
         phraseErrors = 0
-        polishOff = false
-        polishContext = ""
-        if (aiPending > 0) listener.onRewriting(false)
-        aiPending = 0
-        finishWhenAiDone = false
-        aiSeq.set(0); aiOk = 0; aiFailed = 0; aiTotalMs = 0; aiMaxMs = 0
+        draftMode = prefs.polishEnabled
         builtinErrorStreak = 0
         builtinRestarts = 0
         partialCount = 0
@@ -271,9 +240,10 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
             (if (prefs.polishEnabled) " llm=${prefs.llmProvider}/${prefs.llmModel(LlmProvider.from(prefs.llmProvider))}" else "") +
             " autoType=${prefs.autoInsert} a11yConnected=${TypeAccessibilityService.instance != null} " +
             "fieldFocused=${TypeAccessibilityService.instance?.editorActive()} sdk=${Build.VERSION.SDK_INT}")
+        if (draftMode) Log.i(tag, "AI rewrite ON: nothing is typed while you speak; the words go to the draft card " +
+            "and the whole text is rewritten in one call when you tap Send")
         try {
             if (provider == SttProvider.BUILTIN) {
-                if (prefs.polishEnabled) Log.i(tag, "AI rewrite ON: live words are not typed; each settled phrase is typed only after the LLM rewrites it")
                 builtinActive = true
                 listenOnce("session start", muteBeep = false)
             } else {
@@ -331,21 +301,13 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
     private fun finishSession() {
         if (state == State.IDLE) return
         settleLivePhrase("session end")
-        if (aiPending > 0) {
-            Log.i(tag, "Session end waits for $aiPending AI rewrite(s) still in flight")
-            finishWhenAiDone = true
-            return
-        }
-        finishWhenAiDone = false
         unmute()
         recognizer?.destroy() // a fresh recognizer per session avoids stale state
         recognizer = null
         stopMicPipe("session end")
         Log.i(tag, "SESSION $session FINISHED after ${elapsed()}s: phrases=$phrasesDone errors=$phraseErrors " +
-            "builtinRestarts=$builtinRestarts partials=$partialCount segmented=$segmentedSupported chars=${sessionText.length}")
-        if (prefs.polishEnabled) Log.i(tag, "AI REWRITE SUMMARY session $session: ok=$aiOk failed=$aiFailed " +
-            "avgMs=${if (aiOk + aiFailed > 0) aiTotalMs / (aiOk + aiFailed) else 0} maxMs=$aiMaxMs turnedOff=$polishOff " +
-            "llm=${prefs.llmProvider}/${prefs.llmModel(LlmProvider.from(prefs.llmProvider))}")
+            "builtinRestarts=$builtinRestarts partials=$partialCount segmented=$segmentedSupported chars=${sessionText.length}" +
+            (if (draftMode) " (AI draft: nothing typed, waiting for Send)" else ""))
         setState(State.IDLE)
         if (sessionText.isEmpty() && phraseErrors == 0) listener.onError("No speech detected")
     }
@@ -392,47 +354,52 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         if (full == phraseText) return
         phraseText = full
         partialCount++
-        if (aiLive) {
-            // Kept for the rewrite only: the spoken words never reach the text field.
-            Log.d(tag, "Live (held for AI rewrite, not typed): ${full.length} chars")
-            listener.onCaption(Caption(aiSeq.get() + 1, Caption.Stage.LISTENING, t))
+        if (draftMode) {
+            // Shown in the draft card only: the spoken words never reach the text field.
+            Log.d(tag, "Live (AI draft, not typed): ${spoken(t.takeLast(80))} (${t.length} chars)")
+            listener.onDraft(t, false)
             return
         }
         Log.d(tag, "Live: ${spoken(full.takeLast(80))} (${full.length} chars)")
         listener.onText(full, false, sessionText.toString() + full)
     }
 
-    /**
-     * Settled text for the phrase in progress (replaces whatever live text was shown). Returns the
-     * exact text typed, or null when nothing was typed now (empty, or handed to the AI rewrite).
-     */
-    private fun emitFinal(raw: String, what: String): String? {
+    /** Settled text for the phrase in progress (replaces whatever live text was shown). */
+    private fun emitFinal(raw: String, what: String) {
         val t = raw.trim()
         if (t.isEmpty()) {
             if (phraseText.isNotEmpty()) {
                 Log.i(tag, "Final for $what is empty; using the live words instead")
                 settleLivePhrase(what)
             }
-            return null
+            return
         }
-        if (aiLive) { aiRewrite(t, what); return null }
         val full = (phrasePrefix ?: spaceBefore(t)) + t
         sessionText.append(full)
-        polishContext = sessionText.toString()
         phrasesDone++
         phrasePrefix = null
         phraseText = ""
+        if (draftMode) {
+            Log.i(tag, "Final ($what) added to the AI draft, not typed: ${spoken(t)} (draft ${sessionText.length} chars)")
+            listener.onDraft(t, true)
+            return
+        }
         Log.i(tag, "Final ($what): ${spoken(full)} (session ${sessionText.length} chars)")
         listener.onText(full, true, sessionText.toString())
-        return full
     }
 
     /** Treats the live text currently on screen as final (used when the recognizer gives no final). */
     private fun settleLivePhrase(why: String) {
         if (phraseText.isEmpty()) return
-        if (aiLive) {
+        if (draftMode) {
             val raw = phraseText.removePrefix(phrasePrefix.orEmpty()).trim()
-            if (raw.isNotEmpty()) { aiRewrite(raw, why); return }
+            sessionText.append(phraseText)
+            phrasesDone++
+            phrasePrefix = null
+            phraseText = ""
+            Log.i(tag, "Settled live words into the AI draft ($why): ${raw.length} chars")
+            if (raw.isNotEmpty()) listener.onDraft(raw, true)
+            return
         }
         val full = phraseText
         sessionText.append(full)
@@ -444,66 +411,23 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
     }
 
     /**
-     * Built-in + AI: queues the settled phrase for the LLM and types only the rewritten text.
-     * The worker runs rewrites one at a time, so phrases are typed in the order they were spoken,
-     * and the user can keep talking meanwhile (the next phrase just queues behind).
+     * AI rewrite: sends the whole draft (as the user edited it) to the LLM in one call, so the model
+     * sees the full context. [done] runs on the main thread. Works whether or not a session is active.
      */
-    private fun aiRewrite(raw: String, what: String) {
-        phrasePrefix = null
-        phraseText = ""
-        val sid = session
+    fun rewrite(text: String, done: (Rewrite) -> Unit) {
+        val raw = text.trim()
         val n = aiSeq.incrementAndGet()
         val queuedAt = SystemClock.elapsedRealtime()
-        rewriteStarted()
-        Log.i(tag, "AI REWRITE #$n queued ($what): ${raw.length} chars, ahead in queue=${aiPending - 1}")
-        listener.onCaption(Caption(n, Caption.Stage.REWRITING, raw))
+        Log.i(tag, "AI REWRITE #$n queued: ${raw.length} chars")
+        if (released) return
         onWorker {
-            val waitMs = SystemClock.elapsedRealtime() - queuedAt
-            if (waitMs > 300) Log.i(tag, "AI REWRITE #$n waited ${waitMs} ms for earlier rewrites")
-            val result = maybePolish(raw, "#$n")
+            val result = polishAll(raw, "#$n")
             post {
-                rewriteDone()
-                if (sid != session) {
-                    Log.w(tag, "AI REWRITE #$n result dropped: session $sid already ended")
-                    return@post
-                }
-                val prefix = spaceBefore(result.text)
-                val full = prefix + result.text
-                sessionText.append(full)
-                polishContext = sessionText.toString()
-                phrasesDone++
-                Log.i(tag, "AI REWRITE #$n typed after ${SystemClock.elapsedRealtime() - queuedAt} ms total " +
-                    "(${if (result.ok) "rewritten" else "ORIGINAL words, rewrite failed"}): ${spoken(full)}")
-                listener.onText(full, true, sessionText.toString())
-                reportRewrite(n, raw, result, typed = full, original = prefix + raw)
-                result.note?.let { listener.onError(it) }
-                if (finishWhenAiDone && aiPending == 0) finishSession()
+                Log.i(tag, "AI REWRITE #$n done after ${SystemClock.elapsedRealtime() - queuedAt} ms total " +
+                    "(${if (result.ok) "rewritten" else "FAILED: ${result.why}"})")
+                done(result)
             }
         }
-    }
-
-    /** Caption + history for a finished rewrite (main thread). */
-    private fun reportRewrite(n: Int, raw: String, result: Polished, typed: String?, original: String?) {
-        if (result.ok) {
-            listener.onCaption(Caption(n, Caption.Stage.DONE, raw, result.text, typed = typed, original = original))
-            RewriteHistory.add(ctx, raw, result.text, null)
-        } else {
-            listener.onCaption(Caption(n, Caption.Stage.FAILED, raw, note = result.why))
-            RewriteHistory.add(ctx, raw, null, result.why)
-        }
-    }
-
-    /**
-     * "Undo AI": the field now shows [original] instead of [typed] (the caller already swapped it).
-     * Keeps the session text (clipboard fallback, AI context) in step with the field.
-     */
-    fun rewriteUndone(typed: String, original: String) {
-        if (sessionText.endsWith(typed)) {
-            sessionText.setLength(sessionText.length - typed.length)
-            sessionText.append(original)
-            polishContext = sessionText.toString()
-        }
-        Log.i(tag, "AI rewrite undone by the user: ${typed.length} -> ${original.length} chars")
     }
 
     // ---------------- API providers (recorded phrases) ----------------
@@ -521,18 +445,9 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
                 Log.i(tag, "Phrase #${info.index}: dropped likely hallucination ${spoken(raw)}")
                 return
             }
-            val polishing = prefs.polishEnabled && raw.isNotEmpty()
-            val n = if (polishing) aiSeq.incrementAndGet() else 0
-            if (polishing) post { rewriteStarted(); listener.onCaption(Caption(n, Caption.Stage.REWRITING, raw)) }
-            val result = maybePolish(raw, "phrase #${info.index}")
             post {
-                if (polishing) rewriteDone()
                 if (sid != session) return@post
-                val full = emitFinal(result.text, "phrase #${info.index}")
-                if (polishing) reportRewrite(n, raw, result, typed = full,
-                    original = full?.let { it.takeWhile(Char::isWhitespace) + raw })
-                result.note?.let { listener.onError(it) }
-                if (finishWhenAiDone && aiPending == 0) finishSession()
+                emitFinal(raw, "phrase #${info.index}")
             }
         } catch (e: Exception) {
             phraseErrors++
@@ -551,31 +466,22 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         }
     }
 
-    /** Runs on [worker]. Returns the text to use and an optional note for the user. */
-    /** Result of one rewrite: [text] to type, [note] to toast, [ok] = the AI's text, [why] = short failure reason. */
-    private data class Polished(val text: String, val note: String?, val ok: Boolean, val why: String?)
-
-    private fun maybePolish(raw: String, label: String): Polished {
-        if (raw.isEmpty() || !prefs.polishEnabled) return Polished(raw, null, false, null)
-        if (polishOff) {
-            Log.w(tag, "AI REWRITE $label skipped: rewrite was turned off earlier this session; typing original words")
-            return Polished(raw, null, false, "AI rewrite is off for this session")
-        }
+    /** Runs on [worker]: one LLM call for the whole draft. Never throws. */
+    private fun polishAll(raw: String, label: String): Rewrite {
+        if (raw.isEmpty()) return Rewrite(raw, false, "nothing to rewrite")
         val llm = LlmProvider.from(prefs.llmProvider)
         val model = prefs.llmModel(llm)
-        val context = polishContext
         val t0 = SystemClock.elapsedRealtime()
-        Log.i(tag, "AI REWRITE $label: sending ${raw.length} chars (+${context.takeLast(600).length} chars context) " +
-            "to ${llm.id}/$model, prompt ${prefs.polishPrompt.length} chars")
+        Log.i(tag, "AI REWRITE $label: sending ${raw.length} chars ${spoken(raw)} to ${llm.id}/$model, " +
+            "prompt ${prefs.polishPrompt.length} chars, timeout ${Transcriber.POLISH_TIMEOUT_MS / 1000} s")
         return try {
-            val reply = Transcriber(prefs).polish(raw, context)
+            val reply = Transcriber(prefs).polish(raw)
             val ms = SystemClock.elapsedRealtime() - t0
             val cleaned = cleanRewrite(reply, raw)
-            recordRewrite(ms, ok = cleaned.isNotEmpty())
             if (cleaned.isEmpty()) {
                 Log.w(tag, "AI REWRITE $label FAILED cause=EMPTY_REPLY: ${llm.id}/$model answered with no text in $ms ms " +
-                    "(reply was ${reply.length} chars before cleanup); typing original words")
-                return Polished(raw, "AI rewrite returned nothing. Typed your original words.", false, "AI returned nothing")
+                    "(reply was ${reply.length} chars before cleanup)")
+                return Rewrite(raw, false, "the AI returned nothing")
             }
             Log.i(tag, "AI REWRITE $label OK in $ms ms: ${raw.length} -> ${cleaned.length} chars ${spoken(cleaned)}")
             if (cleaned.length > raw.length * 3 && cleaned.length > 60) {
@@ -583,26 +489,13 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
                     "dictation. The model may be answering instead of rewriting; check the session prompt")
             }
             if (ms > 5000) Log.w(tag, "AI REWRITE $label SLOW: $ms ms. A faster model (e.g. Groq, a mini/flash/haiku model) cuts the delay")
-            Polished(cleaned, null, true, null)
+            Rewrite(cleaned, true, null)
         } catch (e: Exception) {
             val ms = SystemClock.elapsedRealtime() - t0
-            recordRewrite(ms, ok = false)
-            val (cause, hint, hard) = rewriteFailure(e)
+            val (cause, hint) = rewriteFailure(e)
             Log.e(tag, "AI REWRITE $label FAILED cause=$cause after $ms ms (${llm.id}/$model): ${e.javaClass.simpleName}: ${e.message}", e)
-            if (hard) {
-                polishOff = true
-                Log.w(tag, "AI REWRITE turned OFF for the rest of session $session (cause=$cause). Original words will be typed")
-                Polished(raw, "AI rewrite off for this session: $hint", false, hint)
-            } else {
-                Polished(raw, "AI rewrite failed: $hint. Typed your original words.", false, hint)
-            }
+            Rewrite(raw, false, hint)
         }
-    }
-
-    private fun recordRewrite(ms: Long, ok: Boolean) {
-        if (ok) aiOk++ else aiFailed++
-        aiTotalMs += ms
-        if (ms > aiMaxMs) aiMaxMs = ms
     }
 
     /** Strips wrappers models add despite instructions: surrounding quotes, "Here is…:" lead-ins. */
@@ -624,37 +517,37 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         return t
     }
 
-    /** Readable cause for the log, a hint for the user, and whether retrying this session is pointless. */
-    private fun rewriteFailure(e: Exception): Triple<String, String, Boolean> {
+    /** Readable cause for the log, and a hint for the user. */
+    private fun rewriteFailure(e: Exception): Pair<String, String> {
         val llm = LlmProvider.from(prefs.llmProvider).label
         val msg = e.message.orEmpty()
         val code = Regex("^HTTP (\\d{3})").find(msg)?.groupValues?.get(1)?.toIntOrNull()
         return when {
             e is java.net.SocketTimeoutException ->
-                Triple("TIMEOUT", "$llm didn't answer in ${Transcriber.POLISH_TIMEOUT_MS / 1000} s", false)
+                Pair("TIMEOUT", "$llm didn't answer in ${Transcriber.POLISH_TIMEOUT_MS / 1000} s")
             e is java.net.UnknownHostException || e is java.net.ConnectException || e is java.net.NoRouteToHostException ->
-                Triple("NO_NETWORK", "can't reach $llm (check internet)", false)
+                Pair("NO_NETWORK", "can't reach $llm (check internet)")
             e is javax.net.ssl.SSLException ->
-                Triple("TLS", "secure connection to $llm failed", false)
+                Pair("TLS", "secure connection to $llm failed")
             code == 401 || code == 403 ->
-                Triple("KEY_REJECTED_$code", "$llm rejected the API key", true)
+                Pair("KEY_REJECTED_$code", "$llm rejected the API key")
             code == 404 ->
-                Triple("MODEL_NOT_FOUND", "$llm doesn't know model \"${prefs.llmModel(LlmProvider.from(prefs.llmProvider))}\"", true)
+                Pair("MODEL_NOT_FOUND", "$llm doesn't know model \"${prefs.llmModel(LlmProvider.from(prefs.llmProvider))}\"")
             code == 400 || code == 422 ->
-                Triple("BAD_REQUEST_$code", "$llm refused the request: ${msg.removePrefix("HTTP $code: ").take(120)}", true)
+                Pair("BAD_REQUEST_$code", "$llm refused the request: ${msg.removePrefix("HTTP $code: ").take(120)}")
             code == 402 ->
-                Triple("NO_CREDIT", "$llm says the account has no credit", true)
+                Pair("NO_CREDIT", "$llm says the account has no credit")
             code == 429 ->
-                Triple("RATE_LIMIT", "$llm rate limit or quota reached", false)
+                Pair("RATE_LIMIT", "$llm rate limit or quota reached")
             code != null && code >= 500 ->
-                Triple("PROVIDER_ERROR_$code", "$llm had a server error ($code)", false)
+                Pair("PROVIDER_ERROR_$code", "$llm had a server error ($code)")
             e is IllegalStateException ->
-                Triple("NOT_CONFIGURED", msg, true) // no key / no model
+                Pair("NOT_CONFIGURED", msg) // no key / no model
             e is org.json.JSONException ->
-                Triple("BAD_RESPONSE", "unexpected reply from $llm", false)
+                Pair("BAD_RESPONSE", "unexpected reply from $llm")
             e is IOException ->
-                Triple("NETWORK_IO", "connection to $llm failed (${e.javaClass.simpleName})", false)
-            else -> Triple("UNEXPECTED", "${e.javaClass.simpleName}: ${msg.take(120)}", false)
+                Pair("NETWORK_IO", "connection to $llm failed (${e.javaClass.simpleName})")
+            else -> Pair("UNEXPECTED", "${e.javaClass.simpleName}: ${msg.take(120)}")
         }
     }
 

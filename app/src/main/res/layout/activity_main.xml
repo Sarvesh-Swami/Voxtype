@@ -415,12 +415,6 @@
                         android:textSize="13sp" />
 
                     <Switch
-                        android:id="@+id/swCaptions"
-                        style="@style/SwitchRow"
-                        android:layout_marginTop="12dp"
-                        android:text="Show live captions next to the bubble (what you said → AI version, tap to undo)" />
-
-                    <Switch
                         android:id="@+id/swHistory"
                         style="@style/SwitchRow"
                         android:text="Keep recent dictations on this phone" />

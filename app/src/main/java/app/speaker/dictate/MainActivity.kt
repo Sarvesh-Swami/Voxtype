@@ -192,10 +192,6 @@ class MainActivity : Activity(), DictationEngine.Listener {
             ui("Toggle: AI rewrite = $on")
             if (on) showPromptDialog(enabling = true) else prefs.polishEnabled = false
         }
-        findViewById<Switch>(R.id.swCaptions).setOnCheckedChangeListener { _, on ->
-            if (prefs.showCaptions == on) return@setOnCheckedChangeListener
-            ui("Toggle: live captions = $on"); prefs.showCaptions = on
-        }
         findViewById<Switch>(R.id.swHistory).setOnCheckedChangeListener { _, on ->
             if (prefs.keepHistory == on) return@setOnCheckedChangeListener
             ui("Toggle: keep recent dictations = $on"); prefs.keepHistory = on
@@ -552,7 +548,6 @@ class MainActivity : Activity(), DictationEngine.Listener {
         swStopOnBlur.isChecked = prefs.stopOnFocusLoss
         swIsland.isChecked = prefs.islandMedia
         swShowBubble.isChecked = prefs.showBubble
-        findViewById<Switch>(R.id.swCaptions).isChecked = prefs.showCaptions
         findViewById<Switch>(R.id.swHistory).isChecked = prefs.keepHistory
         edtPrompt.setText(prefs.polishPrompt)
         edtCustomUrl.setText(prefs.customBaseUrl)
@@ -719,8 +714,8 @@ class MainActivity : Activity(), DictationEngine.Listener {
                     "your phone's speech service (Android/Google). With an API engine, each phrase is sent " +
                     "straight from your phone to the provider you chose (OpenAI, Groq, Google Gemini, Deepgram " +
                     "or your custom URL), using your own key.\n" +
-                    "• AI rewrite (optional): your transcribed text and your prompt go to the AI provider you chose. " +
-                    "If \"Keep recent dictations\" is on, your last 50 sentences and their AI versions are kept on " +
+                    "• AI rewrite (optional): when you tap Send, your transcribed text and your prompt go to the AI " +
+                    "provider you chose. If \"Keep recent dictations\" is on, your last 50 dictations and their AI versions are kept on " +
                     "this phone only (never sent or backed up) until you clear them.\n" +
                     "• API keys and settings stay on this phone (not backed up) and go only to that provider.\n" +
                     "• Accessibility: only types your dictation into the focused field; nothing is read or collected.\n" +
@@ -795,6 +790,7 @@ class MainActivity : Activity(), DictationEngine.Listener {
     override fun onStateChanged(state: DictationEngine.State) {
         if (state == DictationEngine.State.RECORDING) {
             resultBase = txtResult.text.toString().let { if (it.isNotEmpty() && !it.last().isWhitespace()) "$it " else it }
+            draftStart = if (engine.draftMode) resultBase.length else -1
         }
         when (state) {
             DictationEngine.State.IDLE -> {
@@ -807,7 +803,8 @@ class MainActivity : Activity(), DictationEngine.Listener {
                 btnTry.setBackgroundResource(R.drawable.bg_mic_recording)
                 btnTry.setImageResource(R.drawable.ic_stop)
                 txtTryStatus.text = "Listening…"
-                txtTryHint.text = "Speak naturally. Pauses are fine. Tap to stop"
+                txtTryHint.text = if (engine.draftMode) "AI rewrite on: speak, then tap stop to rewrite it all"
+                else "Speak naturally. Pauses are fine. Tap to stop"
             }
             DictationEngine.State.WORKING -> {
                 btnTry.setBackgroundResource(R.drawable.bg_mic_working)
@@ -817,6 +814,7 @@ class MainActivity : Activity(), DictationEngine.Listener {
         }
         btnTry.isEnabled = state != DictationEngine.State.WORKING
         setMicPulse(state == DictationEngine.State.RECORDING)
+        if (state == DictationEngine.State.IDLE && draftStart >= 0) rewriteInAppDraft()
     }
 
     private fun setMicPulse(on: Boolean) {
@@ -849,24 +847,43 @@ class MainActivity : Activity(), DictationEngine.Listener {
         }
     }
 
-    /** In-app test: the hint under the mic shows what you said and the AI's version. */
-    override fun onCaption(caption: DictationEngine.Caption) {
-        if (!prefs.showCaptions) return
-        txtTryHint.text = when (caption.stage) {
-            DictationEngine.Caption.Stage.LISTENING -> "🎤 ${caption.spoken}"
-            DictationEngine.Caption.Stage.REWRITING -> "🎤 ${caption.spoken}\n✨ Rewriting…"
-            DictationEngine.Caption.Stage.DONE -> "🎤 ${caption.spoken}\n✨ ${caption.rewritten}"
-            DictationEngine.Caption.Stage.FAILED -> "🎤 ${caption.spoken}\n⚠ ${caption.note ?: "AI rewrite failed"}. Typed your words."
-        }
+    // In-app AI rewrite test: the words collect in the box (editable) and, when you tap stop, the
+    // text dictated this session is sent to the AI in one call and replaced with its version.
+    private var draftStart = -1 // where this session's draft begins in the box; -1 = not in AI mode
+
+    override fun onDraft(phrase: String, isFinal: Boolean) {
+        val shown = resultBase + phrase
+        txtResult.setText(shown)
+        txtResult.setSelection(shown.length)
+        if (isFinal) resultBase = "$shown "
     }
 
-    override fun onRewriting(active: Boolean) {
-        ui("In-app AI rewrite indicator ${if (active) "ON" else "OFF"}")
-        txtTryStatus.text = when {
-            active -> "✨ Rewriting…"
-            engine.state == DictationEngine.State.RECORDING -> "Listening…"
-            engine.state == DictationEngine.State.WORKING -> "Finishing…"
-            else -> "Tap to dictate"
+    private fun rewriteInAppDraft() {
+        val all = txtResult.text.toString()
+        val start = draftStart.coerceIn(0, all.length)
+        draftStart = -1
+        val draft = all.substring(start).trim()
+        if (draft.isEmpty()) return
+        ui("In-app AI rewrite: sending ${draft.length} chars")
+        txtTryStatus.text = "✨ Processing with AI…"
+        btnTry.isEnabled = false
+        engine.rewrite(draft) { r ->
+            btnTry.isEnabled = true
+            txtTryStatus.text = "Tap to dictate"
+            if (r.ok) {
+                RewriteHistory.add(this, draft, r.text, null)
+                val now = txtResult.text.toString()
+                val before = now.take(start)
+                // Replace the draft only if the box still starts the same way (the user may have edited).
+                if (now.length >= start) {
+                    val shown = before + r.text
+                    txtResult.setText(shown)
+                    txtResult.setSelection(shown.length)
+                }
+            } else {
+                RewriteHistory.add(this, draft, null, r.why)
+                toast("AI rewrite failed: ${r.why}. Your words are left as they were")
+            }
         }
     }
 
