@@ -183,6 +183,10 @@ class BubbleService : Service(), DictationEngine.Listener {
             log("Session started; a text field is ${if (sawFieldThisSession) "focused" else "NOT focused yet"}")
         }
         if (state != DictationEngine.State.RECORDING) mainHandler.removeCallbacks(stopOnBlur)
+        if (state == DictationEngine.State.IDLE) {
+            captionLine = null // dictated words don't linger in the notification after the session
+            if (card != null && !cardOffersUndo) hideCardIn(3000) // a finished rewrite keeps its own timer
+        }
         if (state == DictationEngine.State.IDLE && copiedThisSession) {
             toast("Dictation ($sessionChars chars) is on the clipboard. Long-press, then Paste")
         }
@@ -202,7 +206,7 @@ class BubbleService : Service(), DictationEngine.Listener {
     }
 
     private fun removeBubble() {
-        hidePill()
+        hideCard()
         pulse?.cancel(); pulse = null
         bubble?.let { runCatching { wm.removeView(it) }.onFailure { e -> log("removeView failed: $e") } }
         bubble = null
@@ -318,79 +322,167 @@ class BubbleService : Service(), DictationEngine.Listener {
 
     override fun onError(message: String) = toast(message)
 
-    // ---- "Rewriting…" label next to the bubble (AI rewrite in progress) ----
+    // ---- Caption card next to the bubble (AI rewrite) ----
+    // Shows what you're saying, then what the AI turned it into. Tap it right after a rewrite to put
+    // your own words back ("undo AI"). With captions off, it only shows "Rewriting…".
 
     private var rewriting = false
-    private var pill: TextView? = null
-    private var pillParams: WindowManager.LayoutParams? = null
-    private var pillAnim: android.animation.ObjectAnimator? = null
+    private var card: android.widget.LinearLayout? = null
+    private var cardSpoken: TextView? = null
+    private var cardAi: TextView? = null
+    private var cardHint: TextView? = null
+    private var cardParams: WindowManager.LayoutParams? = null
+    private var cardAnim: android.animation.ObjectAnimator? = null
+    private var undoable: DictationEngine.Caption? = null
+    private var cardOffersUndo = false
+    /** Last "You: … → AI: …" pair for the notification; cleared when the session ends. */
+    private var captionLine: String? = null
+    private val hideCardLater = Runnable { hideCard() }
 
     override fun onRewriting(active: Boolean) {
         if (active == rewriting) return
         rewriting = active
         log("AI rewrite indicator ${if (active) "ON (text will be typed when the rewrite arrives)" else "OFF"}")
-        if (active) showPill() else hidePill()
+        if (!prefs.showCaptions) {
+            if (active) showCard(null, "✨ Rewriting…", null, pulse = true) else hideCard()
+        }
         updateMediaState()
         getSystemService(NotificationManager::class.java).notify(NOTIF_ID, buildNotification())
     }
 
-    private fun showPill() {
-        if (bubble == null || pill != null) return
-        val tv = TextView(this).apply {
-            text = "✨ Rewriting…"
-            setTextColor(0xFFFFFFFF.toInt())
-            textSize = 13f
-            setPadding(dp(12), dp(6), dp(12), dp(6))
+    override fun onCaption(caption: DictationEngine.Caption) {
+        if (!prefs.showCaptions) return
+        val said = "🎤 " + caption.spoken
+        when (caption.stage) {
+            DictationEngine.Caption.Stage.LISTENING -> showCard(said, null, null, pulse = false)
+            DictationEngine.Caption.Stage.REWRITING -> showCard(said, "✨ Rewriting…", null, pulse = true)
+            DictationEngine.Caption.Stage.DONE -> {
+                val canUndo = caption.typed != null && caption.original != null && caption.typed != caption.original
+                undoable = caption.takeIf { canUndo }
+                showCard(said, "✨ " + caption.rewritten, if (canUndo) "Tap to put back your own words" else null, pulse = false)
+                cardOffersUndo = canUndo
+                hideCardIn(6000)
+                captionLine = "You: ${caption.spoken}  →  AI: ${caption.rewritten}"
+                getSystemService(NotificationManager::class.java).notify(NOTIF_ID, buildNotification())
+            }
+            DictationEngine.Caption.Stage.FAILED -> {
+                undoable = null
+                showCard(said, "⚠ ${caption.note ?: "AI rewrite failed"}. Typed your words.", null, pulse = false)
+                hideCardIn(6000)
+            }
+        }
+    }
+
+    private fun hideCardIn(ms: Long) {
+        mainHandler.removeCallbacks(hideCardLater)
+        mainHandler.postDelayed(hideCardLater, ms)
+    }
+
+    private fun showCard(spokenLine: String?, aiLine: String?, hint: String?, pulse: Boolean) {
+        if (bubble == null) return // the card belongs to the bubble; notification/island still show status
+        mainHandler.removeCallbacks(hideCardLater)
+        cardOffersUndo = false
+        if (card == null && !createCard()) return
+        val c = card ?: return
+        val maxW = minOf(dp(280), screenSize().first - dp(58) - dp(44))
+        fun TextView.set(value: String?) {
+            text = value.orEmpty()
+            maxWidth = maxW
+            visibility = if (value.isNullOrEmpty()) View.GONE else View.VISIBLE
+        }
+        cardSpoken?.set(spokenLine)
+        cardAi?.set(aiLine)
+        cardHint?.set(hint)
+        cardAnim?.cancel(); cardAnim = null
+        c.alpha = 1f
+        if (pulse) cardAi?.let { ai ->
+            cardAnim = android.animation.ObjectAnimator.ofFloat(ai, View.ALPHA, 1f, 0.4f).apply {
+                duration = 600
+                repeatCount = android.animation.ValueAnimator.INFINITE
+                repeatMode = android.animation.ValueAnimator.REVERSE
+                start()
+            }
+        } else cardAi?.alpha = 1f
+        moveCard()
+    }
+
+    private fun createCard(): Boolean {
+        fun line(color: Int, size: Float, lines: Int) = TextView(this).apply {
+            setTextColor(color)
+            textSize = size
+            maxLines = lines
+            ellipsize = android.text.TextUtils.TruncateAt.START // keep the newest words visible
+        }
+        val spoken = line(0xB3FFFFFF.toInt(), 13f, 2)
+        val ai = line(0xFFFFFFFF.toInt(), 14f, 3).apply { setPadding(0, dp(3), 0, 0) }
+        val hint = line(0xFF8AB4F8.toInt(), 11f, 1).apply { setPadding(0, dp(4), 0, 0) }
+        val layout = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(dp(12), dp(8), dp(12), dp(8))
             background = GradientDrawable().apply {
-                cornerRadius = dp(16).toFloat()
-                setColor(0xE6202124.toInt())
+                cornerRadius = dp(14).toFloat()
+                setColor(0xF0202124.toInt())
             }
             elevation = dp(4).toFloat()
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            addView(spoken); addView(ai); addView(hint)
+            setOnClickListener { undoAi() }
         }
         val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            // Display only: taps go through to the app underneath.
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            // Not focusable, so the app underneath keeps its text field and keyboard.
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
-        ).apply { gravity = Gravity.TOP or Gravity.START }
-        tv.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
-        placePill(lp, tv)
-        runCatching { wm.addView(tv, lp) }.onFailure { log("Rewriting label could not be shown: $it"); return }
-        pill = tv
-        pillParams = lp
-        pillAnim = android.animation.ObjectAnimator.ofFloat(tv, View.ALPHA, 1f, 0.45f).apply {
-            duration = 600
-            repeatCount = android.animation.ValueAnimator.INFINITE
-            repeatMode = android.animation.ValueAnimator.REVERSE
-            start()
-        }
+        ).apply { gravity = Gravity.TOP or Gravity.START; x = 0; y = 0 }
+        return runCatching { wm.addView(layout, lp) }.fold(
+            onSuccess = {
+                card = layout; cardSpoken = spoken; cardAi = ai; cardHint = hint; cardParams = lp
+                true
+            },
+            onFailure = { log("Caption card could not be shown: $it"); false },
+        )
     }
 
-    /** Beside the bubble, on the side facing the middle of the screen. */
-    private fun placePill(lp: WindowManager.LayoutParams, tv: View) {
+    /** Beside the bubble, on the side facing the middle of the screen, vertically centred on it. */
+    private fun moveCard() {
+        val c = card ?: return
+        val lp = cardParams ?: return
         val bp = params ?: return
+        c.measure(
+            View.MeasureSpec.makeMeasureSpec(screenSize().first, View.MeasureSpec.AT_MOST),
+            View.MeasureSpec.UNSPECIFIED
+        )
         val size = dp(58)
-        val (sw, _) = screenSize()
-        val w = tv.measuredWidth
-        lp.x = if (bp.x + size / 2 > sw / 2) bp.x - w - dp(8) else bp.x + size + dp(8)
-        lp.y = bp.y + (size - tv.measuredHeight) / 2
+        val (sw, sh) = screenSize()
+        lp.x = if (bp.x + size / 2 > sw / 2) bp.x - c.measuredWidth - dp(8) else bp.x + size + dp(8)
+        lp.y = (bp.y + (size - c.measuredHeight) / 2).coerceIn(dp(24), (sh - c.measuredHeight - dp(24)).coerceAtLeast(dp(24)))
+        runCatching { wm.updateViewLayout(c, lp) }
     }
 
-    private fun movePill() {
-        val tv = pill ?: return
-        val lp = pillParams ?: return
-        placePill(lp, tv)
-        runCatching { wm.updateViewLayout(tv, lp) }
+    private fun hideCard() {
+        mainHandler.removeCallbacks(hideCardLater)
+        cardAnim?.cancel(); cardAnim = null
+        card?.let { runCatching { wm.removeView(it) } }
+        card = null; cardSpoken = null; cardAi = null; cardHint = null; cardParams = null
+        cardOffersUndo = false
     }
 
-    private fun hidePill() {
-        pillAnim?.cancel(); pillAnim = null
-        pill?.let { runCatching { wm.removeView(it) } }
-        pill = null
-        pillParams = null
+    /** Tap on the card right after a rewrite: swap the AI's text in the field back to what was said. */
+    private fun undoAi() {
+        val c = undoable
+        if (!cardOffersUndo || c == null || c.typed == null || c.original == null) {
+            log("Caption card tapped (nothing to undo)")
+            return
+        }
+        log("Caption card tapped: undo AI rewrite #${c.id}")
+        if (LiveTyper.replaceLast(c.typed, c.original)) {
+            engine.rewriteUndone(c.typed, c.original)
+            undoable = null
+            showCard("🎤 " + c.spoken, "↩ Your own words are back", null, pulse = false)
+            hideCardIn(2500)
+        } else {
+            toast("Can't undo this one: something else was typed after it")
+        }
     }
 
     // ---- Bubble ----
@@ -537,7 +629,7 @@ class BubbleService : Service(), DictationEngine.Listener {
                         lp.x = startX + dx.toInt()
                         lp.y = startY + dy.toInt()
                         wm.updateViewLayout(v, lp)
-                        movePill()
+                        moveCard()
                     }
                 }
                 MotionEvent.ACTION_UP -> {
@@ -556,7 +648,7 @@ class BubbleService : Service(), DictationEngine.Listener {
                             val rawX = lp.x; val rawY = lp.y
                             clampOnScreen(lp, v.width, snap = true)
                             wm.updateViewLayout(v, lp)
-                            movePill()
+                            moveCard()
                             prefs.bubbleX = lp.x; prefs.bubbleY = lp.y
                             log("Bubble dragged to x=$rawX y=$rawY -> docked at x=${lp.x} y=${lp.y} (${heldMs}ms)")
                         }
@@ -606,10 +698,16 @@ class BubbleService : Service(), DictationEngine.Listener {
             DictationEngine.State.RECORDING -> "Listening continuously. Tap Stop when done" to "⏹ Stop"
             DictationEngine.State.WORKING -> "Finishing last phrase…" to "…"
         }
+        val caption = captionLine
+        val showCaption = caption != null && prefs.showCaptions && currentState != DictationEngine.State.IDLE
         val builder = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_mic)
             .setContentTitle("Speaker")
-            .setContentText(if (rewriting) "✨ Rewriting with AI… the text is typed when it's ready" else text)
+            .setContentText(when {
+                rewriting -> "✨ Rewriting with AI… the text is typed when it's ready"
+                showCaption -> caption
+                else -> text
+            })
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(open)
@@ -629,6 +727,15 @@ class BubbleService : Service(), DictationEngine.Listener {
             builder
                 .addAction(Notification.Action.Builder(null, action, toggle).build())
                 .addAction(Notification.Action.Builder(null, "Quit", quit).build())
+        }
+        if (showCaption) {
+            // Dictated words are private: the lock screen gets the plain status instead.
+            val public = Notification.Builder(this, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_mic)
+                .setContentTitle("Speaker")
+                .setContentText(text)
+                .build()
+            builder.setVisibility(Notification.VISIBILITY_PRIVATE).setPublicVersion(public)
         }
         return builder.build()
     }

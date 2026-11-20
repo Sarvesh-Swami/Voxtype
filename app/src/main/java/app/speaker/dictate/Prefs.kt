@@ -88,6 +88,16 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("island_media", true)
         set(v) = sp.edit().putBoolean("island_media", v).apply()
 
+    /** AI rewrite: card next to the bubble with what you said and the AI's version (also in the notification). */
+    var showCaptions: Boolean
+        get() = sp.getBoolean("show_captions", true)
+        set(v) = sp.edit().putBoolean("show_captions", v).apply()
+
+    /** AI rewrite: keep the last few "you said → AI wrote" pairs on this phone (RewriteHistory). */
+    var keepHistory: Boolean
+        get() = sp.getBoolean("keep_history", true)
+        set(v) = sp.edit().putBoolean("keep_history", v).apply()
+
     var showBubble: Boolean
         get() = sp.getBoolean("show_bubble", true)
         set(v) = sp.edit().putBoolean("show_bubble", v).apply()

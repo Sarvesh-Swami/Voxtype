@@ -187,12 +187,37 @@ object LiveTyper {
 
     private var typed = "" // what is currently on screen for the in-progress phrase
 
+    // The last phrase typed through the input connection, for "undo AI". Cleared by anything typed
+    // after it, so undo only ever touches the text right before the cursor that we just typed.
+    private var lastFinal = ""
+    private var lastFinalAt = 0L
+
     fun reset() {
         if (typed.isNotEmpty()) Log.i(TAG, "LiveTyper reset (dropping tracking of ${typed.length} chars)")
         typed = ""
+        lastFinal = ""
+    }
+
+    /**
+     * Swaps the phrase we just typed ([expected]) for [replacement], if it is still the last thing we
+     * typed (within 30 s) and a text field is connected. Returns false when it isn't safe to try.
+     */
+    fun replaceLast(expected: String, replacement: String): Boolean {
+        val svc = TypeAccessibilityService.instance
+        val age = System.currentTimeMillis() - lastFinalAt
+        if (svc == null || expected.isEmpty() || lastFinal != expected || typed.isNotEmpty() || age > 30_000) {
+            Log.i(TAG, "Undo AI refused: lastMatches=${lastFinal == expected} livePhrase=${typed.isNotEmpty()} " +
+                "ageMs=$age a11y=${svc != null}")
+            return false
+        }
+        val ok = runCatching { svc.typeViaInputConnection(replacement, expected) }.getOrDefault(false)
+        Log.i(TAG, "Undo AI: replaced ${expected.length} chars with ${replacement.length} chars -> ok=$ok")
+        if (ok) { lastFinal = replacement; lastFinalAt = System.currentTimeMillis() }
+        return ok
     }
 
     fun update(ctx: Context, text: String, isFinal: Boolean, sessionText: String): Result {
+        lastFinal = ""
         val svc = TypeAccessibilityService.instance
         val autoType = Prefs(ctx).autoInsert
         if (isFinal) Log.i(TAG, "Final phrase: ${text.length} chars ${spoken(text)} autoType=$autoType a11y=${svc != null}")
@@ -203,6 +228,8 @@ object LiveTyper {
             }
             if (ok) {
                 typed = if (isFinal) "" else text
+                lastFinal = if (isFinal) text else ""
+                lastFinalAt = System.currentTimeMillis()
                 return Result.TYPED
             }
             if (!isFinal) return Result.WAITING // live text needs an input connection; wait for the final
