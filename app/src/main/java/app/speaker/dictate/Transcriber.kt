@@ -9,10 +9,11 @@ import java.net.URLEncoder
 /** Calls the configured speech-to-text API and (optionally) an LLM to polish the text. Blocking. */
 class Transcriber(private val prefs: Prefs) {
 
-    private companion object {
-        // AI rewrite holds the next words back while it waits, so a hung request must fail fast
-        // (the raw words are typed instead).
-        const val POLISH_TIMEOUT_MS = 20_000
+    companion object {
+        // Rewrites run one after another and nothing is typed until each is done, so a hung
+        // request must fail fast (the original words are typed instead).
+        const val POLISH_TIMEOUT_MS = 15_000
+        private const val TAG = "Speaker.ai"
     }
 
     fun transcribe(wav: File): String {
@@ -95,7 +96,14 @@ class Transcriber(private val prefs: Prefs) {
                 .put(JSONObject().put("role", "system").put("content", system))
                 .put(JSONObject().put("role", "user").put("content", text)))
         val json = Http.postJson("$base/chat/completions", bearer(key), body, POLISH_TIMEOUT_MS)
-        return json.getJSONArray("choices").getJSONObject(0).getJSONObject("message").optString("content")
+        val choice = json.getJSONArray("choices").getJSONObject(0)
+        val finish = choice.optString("finish_reason")
+        val message = choice.getJSONObject("message")
+        if (finish != "stop") android.util.Log.w(TAG, "chat/completions finish_reason=$finish model=$model usage=${json.optJSONObject("usage")}")
+        message.optString("refusal").takeIf { it.isNotBlank() && it != "null" }?.let {
+            android.util.Log.w(TAG, "Model refused: ${it.take(200)}")
+        }
+        return message.optString("content").takeIf { it != "null" }.orEmpty()
     }
 
     private fun anthropic(key: String, model: String, system: String, text: String): String {
@@ -108,6 +116,8 @@ class Transcriber(private val prefs: Prefs) {
             "https://api.anthropic.com/v1/messages",
             mapOf("x-api-key" to key, "anthropic-version" to "2023-06-01"), body, POLISH_TIMEOUT_MS
         )
+        val stop = json.optString("stop_reason")
+        if (stop != "end_turn") android.util.Log.w(TAG, "Anthropic stop_reason=$stop model=$model usage=${json.optJSONObject("usage")}")
         val content = json.getJSONArray("content")
         return (0 until content.length()).map { content.getJSONObject(it) }
             .filter { it.optString("type") == "text" }.joinToString("") { it.optString("text") }
@@ -118,6 +128,10 @@ class Transcriber(private val prefs: Prefs) {
             .put("systemInstruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", system))))
             .put("contents", JSONArray().put(JSONObject().put("role", "user")
                 .put("parts", JSONArray().put(JSONObject().put("text", text)))))
+        // 2.5 Flash "thinks" by default, which adds seconds; a rewrite doesn't need it.
+        if (model.startsWith("gemini-2.5-flash")) {
+            body.put("generationConfig", JSONObject().put("thinkingConfig", JSONObject().put("thinkingBudget", 0)))
+        }
         return geminiText(Http.postJson(geminiUrl(model), mapOf("x-goog-api-key" to key), body, POLISH_TIMEOUT_MS))
     }
 
@@ -125,9 +139,16 @@ class Transcriber(private val prefs: Prefs) {
         "https://generativelanguage.googleapis.com/v1beta/models/${URLEncoder.encode(model, "UTF-8")}:generateContent"
 
     private fun geminiText(json: JSONObject): String {
-        val candidates = json.optJSONArray("candidates") ?: return ""
-        if (candidates.length() == 0) return ""
-        val parts = candidates.getJSONObject(0).optJSONObject("content")?.optJSONArray("parts") ?: return ""
+        val candidates = json.optJSONArray("candidates")
+        if (candidates == null || candidates.length() == 0) {
+            // Usually a safety block: promptFeedback.blockReason says why.
+            android.util.Log.w(TAG, "Gemini returned no candidates; promptFeedback=${json.optJSONObject("promptFeedback")}")
+            return ""
+        }
+        val first = candidates.getJSONObject(0)
+        val finish = first.optString("finishReason")
+        if (finish.isNotEmpty() && finish != "STOP") android.util.Log.w(TAG, "Gemini finishReason=$finish")
+        val parts = first.optJSONObject("content")?.optJSONArray("parts") ?: return ""
         return (0 until parts.length()).joinToString("") { parts.getJSONObject(it).optString("text") }
     }
 

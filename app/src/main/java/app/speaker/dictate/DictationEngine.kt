@@ -38,6 +38,8 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
          */
         fun onText(text: String, isFinal: Boolean, sessionText: String)
         fun onError(message: String)
+        /** AI rewrite is working on dictated text (nothing is typed until it's done). */
+        fun onRewriting(active: Boolean) {}
     }
 
     /** RECORDING = session active (listening). WORKING = stopping, finishing the last phrase. */
@@ -57,14 +59,26 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
     @Volatile private var polishOff = false
     @Volatile private var polishContext = "" // session text so far, sent to the LLM as context
 
-    // AI rewrite for the built-in recognizer: a settled phrase is sent to the LLM and the raw words
-    // on screen are replaced with the rewritten text. While that's in flight, the next phrase's
-    // words are held (not typed) so the replacement can't land in the middle of them.
-    private var aiBusy = false
-    private val heldFinals = ArrayDeque<Pair<String, String>>()
-    private var heldPartial: String? = null
+    // AI rewrite: the spoken words are NEVER typed. Live words are only kept here; each settled
+    // phrase goes to the LLM (queued on [worker], so phrases stay in order) and only the rewritten
+    // text is typed. If the rewrite fails, the original words are typed so nothing is lost.
+    private var aiPending = 0 // rewrites queued or in flight (main thread)
     private var finishWhenAiDone = false
+    private var aiSeq = 0
+    @Volatile private var aiOk = 0
+    @Volatile private var aiFailed = 0
+    @Volatile private var aiTotalMs = 0L
+    @Volatile private var aiMaxMs = 0L
     private val aiLive get() = prefs.polishEnabled && !polishOff && SttProvider.from(prefs.sttProvider) == SttProvider.BUILTIN
+
+    private fun rewriteStarted() {
+        if (aiPending++ == 0) listener.onRewriting(true)
+    }
+
+    private fun rewriteDone() {
+        aiPending = (aiPending - 1).coerceAtLeast(0)
+        if (aiPending == 0) listener.onRewriting(false)
+    }
 
     // Current (unsettled) phrase
     private var phrasePrefix: String? = null
@@ -225,10 +239,10 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         phraseErrors = 0
         polishOff = false
         polishContext = ""
-        aiBusy = false
-        heldFinals.clear()
-        heldPartial = null
+        if (aiPending > 0) listener.onRewriting(false)
+        aiPending = 0
         finishWhenAiDone = false
+        aiSeq = 0; aiOk = 0; aiFailed = 0; aiTotalMs = 0; aiMaxMs = 0
         builtinErrorStreak = 0
         builtinRestarts = 0
         partialCount = 0
@@ -240,7 +254,7 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
             "fieldFocused=${TypeAccessibilityService.instance?.editorActive()} sdk=${Build.VERSION.SDK_INT}")
         try {
             if (provider == SttProvider.BUILTIN) {
-                if (prefs.polishEnabled) Log.i(tag, "AI rewrite ON for the built-in recognizer: each settled phrase is replaced with the LLM's version")
+                if (prefs.polishEnabled) Log.i(tag, "AI rewrite ON: live words are not typed; each settled phrase is typed only after the LLM rewrites it")
                 builtinActive = true
                 listenOnce("session start", muteBeep = false)
             } else {
@@ -298,18 +312,21 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
     private fun finishSession() {
         if (state == State.IDLE) return
         settleLivePhrase("session end")
-        if (aiBusy || heldFinals.isNotEmpty()) {
-            heldPartial?.let { heldFinals.addLast(it to "session end (held words)"); heldPartial = null }
-            Log.i(tag, "Session end waits for the AI rewrite in flight (held finals=${heldFinals.size})")
+        if (aiPending > 0) {
+            Log.i(tag, "Session end waits for $aiPending AI rewrite(s) still in flight")
             finishWhenAiDone = true
             return
         }
+        finishWhenAiDone = false
         unmute()
         recognizer?.destroy() // a fresh recognizer per session avoids stale state
         recognizer = null
         stopMicPipe("session end")
         Log.i(tag, "SESSION $session FINISHED after ${elapsed()}s: phrases=$phrasesDone errors=$phraseErrors " +
             "builtinRestarts=$builtinRestarts partials=$partialCount segmented=$segmentedSupported chars=${sessionText.length}")
+        if (prefs.polishEnabled) Log.i(tag, "AI REWRITE SUMMARY session $session: ok=$aiOk failed=$aiFailed " +
+            "avgMs=${if (aiOk + aiFailed > 0) aiTotalMs / (aiOk + aiFailed) else 0} maxMs=$aiMaxMs turnedOff=$polishOff " +
+            "llm=${prefs.llmProvider}/${prefs.llmModel(LlmProvider.from(prefs.llmProvider))}")
         setState(State.IDLE)
         if (sessionText.isEmpty() && phraseErrors == 0) listener.onError("No speech detected")
     }
@@ -351,12 +368,16 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
     private fun emitPartial(raw: String) {
         val t = raw.trim()
         if (t.isEmpty()) return
-        if (aiBusy) { heldPartial = t; return }
         val prefix = phrasePrefix ?: spaceBefore(t).also { phrasePrefix = it }
         val full = prefix + t
         if (full == phraseText) return
         phraseText = full
         partialCount++
+        if (aiLive) {
+            // Kept for the rewrite only: the spoken words never reach the text field.
+            Log.d(tag, "Live (held for AI rewrite, not typed): ${full.length} chars")
+            return
+        }
         Log.d(tag, "Live: ${spoken(full.takeLast(80))} (${full.length} chars)")
         listener.onText(full, false, sessionText.toString() + full)
     }
@@ -365,20 +386,10 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
     private fun emitFinal(raw: String, what: String) {
         val t = raw.trim()
         if (t.isEmpty()) {
-            if (aiBusy) {
-                heldPartial?.let { heldFinals.addLast(it to "$what (held words)"); heldPartial = null }
-                return
-            }
             if (phraseText.isNotEmpty()) {
-                Log.i(tag, "Final for $what is empty; keeping the live text that was already typed")
+                Log.i(tag, "Final for $what is empty; using the live words instead")
                 settleLivePhrase(what)
             }
-            return
-        }
-        if (aiBusy) {
-            heldFinals.addLast(t to what)
-            heldPartial = null
-            Log.i(tag, "AI rewrite busy: holding final ($what) until it's done (held=${heldFinals.size})")
             return
         }
         if (aiLive) { aiRewrite(t, what); return }
@@ -395,7 +406,7 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
     /** Treats the live text currently on screen as final (used when the recognizer gives no final). */
     private fun settleLivePhrase(why: String) {
         if (phraseText.isEmpty()) return
-        if (aiLive && !aiBusy) {
+        if (aiLive) {
             val raw = phraseText.removePrefix(phrasePrefix.orEmpty()).trim()
             if (raw.isNotEmpty()) { aiRewrite(raw, why); return }
         }
@@ -409,42 +420,37 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
     }
 
     /**
-     * Built-in + AI: shows the raw words right away, asks the LLM for the rewrite, then swaps the
-     * raw words on screen for the rewritten text (LiveTyper replaces the live phrase with the final).
+     * Built-in + AI: queues the settled phrase for the LLM and types only the rewritten text.
+     * The worker runs rewrites one at a time, so phrases are typed in the order they were spoken,
+     * and the user can keep talking meanwhile (the next phrase just queues behind).
      */
     private fun aiRewrite(raw: String, what: String) {
-        val prefix = phrasePrefix ?: spaceBefore(raw)
-        val live = prefix + raw
-        if (live != phraseText) {
-            phraseText = live
-            listener.onText(live, false, sessionText.toString() + live)
-        }
-        // LiveTyper remembers what's on screen; the engine's phrase buffer is free for the next phrase.
         phrasePrefix = null
         phraseText = ""
-        aiBusy = true
         val sid = session
-        polishContext = sessionText.toString()
-        Log.i(tag, "AI rewrite ($what): sending ${raw.length} chars")
+        val n = ++aiSeq
+        val queuedAt = SystemClock.elapsedRealtime()
+        rewriteStarted()
+        Log.i(tag, "AI REWRITE #$n queued ($what): ${raw.length} chars, ahead in queue=${aiPending - 1}")
         onWorker {
-            val (text, note) = maybePolish(raw)
+            val waitMs = SystemClock.elapsedRealtime() - queuedAt
+            if (waitMs > 300) Log.i(tag, "AI REWRITE #$n waited ${waitMs} ms for earlier rewrites")
+            val (text, note) = maybePolish(raw, "#$n")
             post {
-                aiBusy = false
-                if (sid != session) return@post
-                val full = prefix + text
+                rewriteDone()
+                if (sid != session) {
+                    Log.w(tag, "AI REWRITE #$n result dropped: session $sid already ended")
+                    return@post
+                }
+                val full = spaceBefore(text) + text
                 sessionText.append(full)
+                polishContext = sessionText.toString()
                 phrasesDone++
-                Log.i(tag, "Final (AI, $what): ${spoken(full)} (raw was ${spoken(raw)})")
+                Log.i(tag, "AI REWRITE #$n typed after ${SystemClock.elapsedRealtime() - queuedAt} ms total " +
+                    "(${if (note == null) "rewritten" else "ORIGINAL words, rewrite failed"}): ${spoken(full)}")
                 listener.onText(full, true, sessionText.toString())
                 note?.let { listener.onError(it) }
-                when {
-                    heldFinals.isNotEmpty() -> heldFinals.removeFirst().let { (r, w) -> emitFinal(r, w) }
-                    heldPartial != null -> heldPartial?.also { heldPartial = null }?.let { emitPartial(it) }
-                }
-                if (finishWhenAiDone && !aiBusy && heldFinals.isEmpty()) {
-                    finishWhenAiDone = false
-                    finishSession()
-                }
+                if (finishWhenAiDone && aiPending == 0) finishSession()
             }
         }
     }
@@ -464,11 +470,15 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
                 Log.i(tag, "Phrase #${info.index}: dropped likely hallucination ${spoken(raw)}")
                 return
             }
-            val (text, note) = maybePolish(raw)
+            val polishing = prefs.polishEnabled && !polishOff
+            if (polishing) post { rewriteStarted() }
+            val (text, note) = maybePolish(raw, "phrase #${info.index}")
             post {
+                if (polishing) rewriteDone()
                 if (sid != session) return@post
                 emitFinal(text, "phrase #${info.index}")
                 note?.let { listener.onError(it) }
+                if (finishWhenAiDone && aiPending == 0) finishSession()
             }
         } catch (e: Exception) {
             phraseErrors++
@@ -488,24 +498,106 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
     }
 
     /** Runs on [worker]. Returns the text to use and an optional note for the user. */
-    private fun maybePolish(raw: String): Pair<String, String?> {
-        if (raw.isEmpty() || !prefs.polishEnabled || polishOff) return raw to null
+    private fun maybePolish(raw: String, label: String): Pair<String, String?> {
+        if (raw.isEmpty() || !prefs.polishEnabled) return raw to null
+        if (polishOff) {
+            Log.w(tag, "AI REWRITE $label skipped: rewrite was turned off earlier this session; typing original words")
+            return raw to null
+        }
         val llm = LlmProvider.from(prefs.llmProvider)
+        val model = prefs.llmModel(llm)
+        val context = polishContext
+        val t0 = SystemClock.elapsedRealtime()
+        Log.i(tag, "AI REWRITE $label: sending ${raw.length} chars (+${context.takeLast(600).length} chars context) " +
+            "to ${llm.id}/$model, prompt ${prefs.polishPrompt.length} chars")
         return try {
-            val t0 = SystemClock.elapsedRealtime()
-            val polished = Transcriber(prefs).polish(raw, polishContext).trim().ifEmpty { raw }
-            Log.i(tag, "Polished with ${llm.id} in ${SystemClock.elapsedRealtime() - t0} ms: ${spoken(polished)}")
-            polished to null
+            val reply = Transcriber(prefs).polish(raw, context)
+            val ms = SystemClock.elapsedRealtime() - t0
+            val cleaned = cleanRewrite(reply, raw)
+            recordRewrite(ms, ok = cleaned.isNotEmpty())
+            if (cleaned.isEmpty()) {
+                Log.w(tag, "AI REWRITE $label FAILED cause=EMPTY_REPLY: ${llm.id}/$model answered with no text in $ms ms " +
+                    "(reply was ${reply.length} chars before cleanup); typing original words")
+                return raw to "AI rewrite returned nothing. Typed your original words."
+            }
+            Log.i(tag, "AI REWRITE $label OK in $ms ms: ${raw.length} -> ${cleaned.length} chars ${spoken(cleaned)}")
+            if (cleaned.length > raw.length * 3 && cleaned.length > 60) {
+                Log.w(tag, "AI REWRITE $label: reply is ${cleaned.length / raw.length.coerceAtLeast(1)}x longer than the " +
+                    "dictation. The model may be answering instead of rewriting; check the session prompt")
+            }
+            if (ms > 5000) Log.w(tag, "AI REWRITE $label SLOW: $ms ms. A faster model (e.g. Groq, a mini/flash/haiku model) cuts the delay")
+            cleaned to null
         } catch (e: Exception) {
-            Log.e(tag, "Polish failed (${llm.id}); using raw text", e)
-            val hard = e is IOException && Regex("^HTTP 40[0-3]").containsMatchIn(e.message.orEmpty())
+            val ms = SystemClock.elapsedRealtime() - t0
+            recordRewrite(ms, ok = false)
+            val (cause, hint, hard) = rewriteFailure(e)
+            Log.e(tag, "AI REWRITE $label FAILED cause=$cause after $ms ms (${llm.id}/$model): ${e.javaClass.simpleName}: ${e.message}", e)
             if (hard) {
                 polishOff = true
-                Log.w(tag, "Polish turned off for the rest of this session (provider refused: ${e.message})")
-                raw to "Polish off for this session: ${llm.label} said ${e.message}"
+                Log.w(tag, "AI REWRITE turned OFF for the rest of session $session (cause=$cause). Original words will be typed")
+                raw to "AI rewrite off for this session: $hint"
             } else {
-                raw to "Polish failed (${llm.label}): ${e.message}. Used raw text."
+                raw to "AI rewrite failed: $hint. Typed your original words."
             }
+        }
+    }
+
+    private fun recordRewrite(ms: Long, ok: Boolean) {
+        if (ok) aiOk++ else aiFailed++
+        aiTotalMs += ms
+        if (ms > aiMaxMs) aiMaxMs = ms
+    }
+
+    /** Strips wrappers models add despite instructions: surrounding quotes, "Here is…:" lead-ins. */
+    private fun cleanRewrite(reply: String, raw: String): String {
+        var t = reply.trim()
+        val lead = Regex("^(here('s| is) (the )?(rewritten|corrected|cleaned|revised)[^:\\n]{0,40}:)\\s*", RegexOption.IGNORE_CASE)
+        lead.find(t)?.let {
+            Log.w(tag, "AI rewrite reply started with a lead-in (\"${it.value.trim()}\"); removed it")
+            t = t.substring(it.range.last + 1).trim()
+        }
+        val quotes = listOf("\"" to "\"", "“" to "”")
+        for ((open, close) in quotes) {
+            if (t.length >= 2 && t.startsWith(open) && t.endsWith(close) && !raw.trim().startsWith(open)) {
+                t = t.substring(open.length, t.length - close.length).trim()
+                Log.i(tag, "AI rewrite reply was wrapped in quotes; removed them")
+                break
+            }
+        }
+        return t
+    }
+
+    /** Readable cause for the log, a hint for the user, and whether retrying this session is pointless. */
+    private fun rewriteFailure(e: Exception): Triple<String, String, Boolean> {
+        val llm = LlmProvider.from(prefs.llmProvider).label
+        val msg = e.message.orEmpty()
+        val code = Regex("^HTTP (\\d{3})").find(msg)?.groupValues?.get(1)?.toIntOrNull()
+        return when {
+            e is java.net.SocketTimeoutException ->
+                Triple("TIMEOUT", "$llm didn't answer in ${Transcriber.POLISH_TIMEOUT_MS / 1000} s", false)
+            e is java.net.UnknownHostException || e is java.net.ConnectException || e is java.net.NoRouteToHostException ->
+                Triple("NO_NETWORK", "can't reach $llm (check internet)", false)
+            e is javax.net.ssl.SSLException ->
+                Triple("TLS", "secure connection to $llm failed", false)
+            code == 401 || code == 403 ->
+                Triple("KEY_REJECTED_$code", "$llm rejected the API key", true)
+            code == 404 ->
+                Triple("MODEL_NOT_FOUND", "$llm doesn't know model \"${prefs.llmModel(LlmProvider.from(prefs.llmProvider))}\"", true)
+            code == 400 || code == 422 ->
+                Triple("BAD_REQUEST_$code", "$llm refused the request: ${msg.removePrefix("HTTP $code: ").take(120)}", true)
+            code == 402 ->
+                Triple("NO_CREDIT", "$llm says the account has no credit", true)
+            code == 429 ->
+                Triple("RATE_LIMIT", "$llm rate limit or quota reached", false)
+            code != null && code >= 500 ->
+                Triple("PROVIDER_ERROR_$code", "$llm had a server error ($code)", false)
+            e is IllegalStateException ->
+                Triple("NOT_CONFIGURED", msg, true) // no key / no model
+            e is org.json.JSONException ->
+                Triple("BAD_RESPONSE", "unexpected reply from $llm", false)
+            e is IOException ->
+                Triple("NETWORK_IO", "connection to $llm failed (${e.javaClass.simpleName})", false)
+            else -> Triple("UNEXPECTED", "${e.javaClass.simpleName}: ${msg.take(120)}", false)
         }
     }
 

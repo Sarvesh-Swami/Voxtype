@@ -57,7 +57,11 @@ Play Store release steps and policy notes: `docs/play-store-release-checklist.md
   phrases at pauses; a single-thread worker transcribes them in order (`onWorker`/`post` are no-ops after
   `release()`). Built-in `SpeechRecognizer`: Android 13+ streams the app-owned mic through `MicPipe`
   (EXTRA_AUDIO_SOURCE, segmented session). One watchdog loop: restarts the recognizer when it closes the pipe,
-  stops reporting mic levels for 6 s, or goes 90 s without callbacks. Optional AI rewrite of each phrase.
+  stops reporting mic levels for 6 s, or goes 90 s without callbacks.
+  AI rewrite: spoken words are never typed. Each settled phrase is queued on the worker (in order), and
+  only the rewritten text is typed; `onRewriting()` drives the "Rewriting…" label by the bubble. If a rewrite
+  fails, the original words are typed with a toast. Logs: grep `AI REWRITE` (each step, `cause=` on failure,
+  per-session `AI REWRITE SUMMARY`) and `Speaker.ai` (finish/stop reasons, Gemini blocks).
 - `MicPipe`: owns the AudioRecord; reports pipe closed by recognizer, mic silenced by another app, mic failure;
   reopens a dead AudioRecord.
 - `BubbleService`: microphone-type foreground service; overlay bubble, notification, optional MediaSession for

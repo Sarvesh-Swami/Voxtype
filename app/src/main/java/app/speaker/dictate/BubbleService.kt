@@ -19,6 +19,7 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import kotlin.math.hypot
 
@@ -201,6 +202,7 @@ class BubbleService : Service(), DictationEngine.Listener {
     }
 
     private fun removeBubble() {
+        hidePill()
         pulse?.cancel(); pulse = null
         bubble?.let { runCatching { wm.removeView(it) }.onFailure { e -> log("removeView failed: $e") } }
         bubble = null
@@ -272,7 +274,7 @@ class BubbleService : Service(), DictationEngine.Listener {
     private fun updateMediaState() {
         val s = session ?: return
         val recording = currentState != DictationEngine.State.IDLE
-        val subtitle = when (currentState) {
+        val subtitle = if (rewriting) "✨ Rewriting with AI…" else when (currentState) {
             DictationEngine.State.IDLE -> "Tap ▶ to dictate"
             DictationEngine.State.RECORDING -> "Listening… tap ⏸ to stop"
             DictationEngine.State.WORKING -> "Finishing…"
@@ -315,6 +317,81 @@ class BubbleService : Service(), DictationEngine.Listener {
     }
 
     override fun onError(message: String) = toast(message)
+
+    // ---- "Rewriting…" label next to the bubble (AI rewrite in progress) ----
+
+    private var rewriting = false
+    private var pill: TextView? = null
+    private var pillParams: WindowManager.LayoutParams? = null
+    private var pillAnim: android.animation.ObjectAnimator? = null
+
+    override fun onRewriting(active: Boolean) {
+        if (active == rewriting) return
+        rewriting = active
+        log("AI rewrite indicator ${if (active) "ON (text will be typed when the rewrite arrives)" else "OFF"}")
+        if (active) showPill() else hidePill()
+        updateMediaState()
+        getSystemService(NotificationManager::class.java).notify(NOTIF_ID, buildNotification())
+    }
+
+    private fun showPill() {
+        if (bubble == null || pill != null) return
+        val tv = TextView(this).apply {
+            text = "✨ Rewriting…"
+            setTextColor(0xFFFFFFFF.toInt())
+            textSize = 13f
+            setPadding(dp(12), dp(6), dp(12), dp(6))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(16).toFloat()
+                setColor(0xE6202124.toInt())
+            }
+            elevation = dp(4).toFloat()
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+        val lp = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            // Display only: taps go through to the app underneath.
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        ).apply { gravity = Gravity.TOP or Gravity.START }
+        tv.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+        placePill(lp, tv)
+        runCatching { wm.addView(tv, lp) }.onFailure { log("Rewriting label could not be shown: $it"); return }
+        pill = tv
+        pillParams = lp
+        pillAnim = android.animation.ObjectAnimator.ofFloat(tv, View.ALPHA, 1f, 0.45f).apply {
+            duration = 600
+            repeatCount = android.animation.ValueAnimator.INFINITE
+            repeatMode = android.animation.ValueAnimator.REVERSE
+            start()
+        }
+    }
+
+    /** Beside the bubble, on the side facing the middle of the screen. */
+    private fun placePill(lp: WindowManager.LayoutParams, tv: View) {
+        val bp = params ?: return
+        val size = dp(58)
+        val (sw, _) = screenSize()
+        val w = tv.measuredWidth
+        lp.x = if (bp.x + size / 2 > sw / 2) bp.x - w - dp(8) else bp.x + size + dp(8)
+        lp.y = bp.y + (size - tv.measuredHeight) / 2
+    }
+
+    private fun movePill() {
+        val tv = pill ?: return
+        val lp = pillParams ?: return
+        placePill(lp, tv)
+        runCatching { wm.updateViewLayout(tv, lp) }
+    }
+
+    private fun hidePill() {
+        pillAnim?.cancel(); pillAnim = null
+        pill?.let { runCatching { wm.removeView(it) } }
+        pill = null
+        pillParams = null
+    }
 
     // ---- Bubble ----
 
@@ -460,6 +537,7 @@ class BubbleService : Service(), DictationEngine.Listener {
                         lp.x = startX + dx.toInt()
                         lp.y = startY + dy.toInt()
                         wm.updateViewLayout(v, lp)
+                        movePill()
                     }
                 }
                 MotionEvent.ACTION_UP -> {
@@ -478,6 +556,7 @@ class BubbleService : Service(), DictationEngine.Listener {
                             val rawX = lp.x; val rawY = lp.y
                             clampOnScreen(lp, v.width, snap = true)
                             wm.updateViewLayout(v, lp)
+                            movePill()
                             prefs.bubbleX = lp.x; prefs.bubbleY = lp.y
                             log("Bubble dragged to x=$rawX y=$rawY -> docked at x=${lp.x} y=${lp.y} (${heldMs}ms)")
                         }
@@ -530,7 +609,7 @@ class BubbleService : Service(), DictationEngine.Listener {
         val builder = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_mic)
             .setContentTitle("Speaker")
-            .setContentText(text)
+            .setContentText(if (rewriting) "✨ Rewriting with AI… the text is typed when it's ready" else text)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(open)

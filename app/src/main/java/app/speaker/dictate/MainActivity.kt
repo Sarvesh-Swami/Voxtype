@@ -758,6 +758,16 @@ class MainActivity : Activity(), DictationEngine.Listener {
         }
     }
 
+    override fun onRewriting(active: Boolean) {
+        ui("In-app AI rewrite indicator ${if (active) "ON" else "OFF"}")
+        txtTryStatus.text = when {
+            active -> "✨ Rewriting…"
+            engine.state == DictationEngine.State.RECORDING -> "Listening…"
+            engine.state == DictationEngine.State.WORKING -> "Finishing…"
+            else -> "Tap to dictate"
+        }
+    }
+
     override fun onError(message: String) {
         android.util.Log.w("Speaker.ui", "Error shown in app: $message")
         toast(message)
