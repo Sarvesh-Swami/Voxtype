@@ -1,6 +1,6 @@
 # Speaker website: hosting and updating
 
-Static site: plain HTML and CSS, no build step, no JavaScript, no cookies. Pages: `index.html`, `download.html`,
+Static site: plain HTML and CSS (full-width product-site layout), no build step, no JavaScript, no cookies. Pages: `index.html`, `download.html`,
 `guide.html`, `faq.html`, `privacy.html`. Shared files are in `assets/`. The APK goes in
 `downloads/Speaker-<version>.apk`. APKs are git-ignored, so copy the file in before you upload.
 
@@ -40,8 +40,8 @@ gives you (e.g. `<user>.github.io`). `.htaccess` is ignored there; those hosts a
 1. Bump `versionCode`/`versionName` in `app/build.gradle.kts`, then run `gradlew assemblePlayRelease`.
 2. Copy `app/build/outputs/apk/play/release/app-play-release.apk` to `website/downloads/Speaker-<version>.apk`.
 3. Get the SHA-256 and the size: `certutil -hashfile website\downloads\Speaker-<version>.apk SHA256`.
-4. Update every page: the version (masthead, specs panel, download table and button), the file name in
-   `download.html`, the size, the release date, the SHA-256, and a line in "What's New" on `index.html`.
+4. Update every page: the version (utility bar, download card and button, CTA button), the file name in
+   `download.html`, the size, the release date, the SHA-256, and a new entry under "Release notes" in `download.html`.
 5. Upload the new APK and the changed pages. Remove the old APK.
 
 The public APK is the **play** flavor signed with the upload key (`keystore/speaker-upload.jks`, certificate

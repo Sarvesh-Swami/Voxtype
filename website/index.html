@@ -3,147 +3,281 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Speaker - Voice Typing for Every Android App</title>
-<meta name="description" content="Speaker is a free Android app that floats a microphone bubble over every app. Tap, speak, and your words are typed into whatever text box you are using.">
+<title>Speaker: Voice Typing for Every Android App</title>
+<meta name="description" content="Speaker puts a microphone over every app on your Android phone. Tap, speak, and your words are typed into the text box you're using. Optional AI rewrite, your choice of speech engine, no account.">
 <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/style.css">
 </head>
-<body id="top">
-<div class="page">
+<body>
 
-  <div class="topstrip">
-    <span>Free voice typing for Android &middot; No account &middot; No ads</span>
-    <span class="hide-sm"><a href="faq.html">Support</a> &nbsp;|&nbsp; <a href="privacy.html">Privacy</a></span>
-  </div>
+<div class="utility"><div class="wrap">
+  <span>Speaker 1.0.0 for Android is available now.</span>
+  <span class="hide-sm"><a href="guide.html">Support</a> &nbsp;&middot;&nbsp; <a href="mailto:[CONTACT EMAIL]">Contact</a></span>
+</div></div>
 
-  <header class="masthead">
-    <a class="brand" href="index.html">
-      <img src="assets/logo.svg" alt="" width="58" height="58">
-      <span><span class="brand-name">Speaker</span><span class="brand-tag">Voice typing for every Android app</span></span>
-    </a>
-    <div class="mast-badge"><strong>Version 1.0.0</strong>Free download &middot; Android 8.0+</div>
-  </header>
-
+<header class="site-header"><div class="wrap">
+  <a class="logo" href="index.html"><img src="assets/logo.svg" alt="" width="38" height="38"><span>Speaker</span></a>
   <ul class="nav">
-    <li><a href="index.html" aria-current="page">Home</a></li>
-    <li><a href="download.html">Download</a></li>
+    <li><a href="index.html" aria-current="page">Overview</a></li>
+    <li><a href="index.html#features">Features</a></li>
     <li><a href="guide.html">Setup Guide</a></li>
     <li><a href="faq.html">FAQ</a></li>
     <li><a href="privacy.html">Privacy</a></li>
   </ul>
+  <a class="btn btn-sm" href="download.html">Download</a>
+</div></header>
 
-  <div class="body">
-    <main class="main">
-
-      <section class="hero">
-        <div class="hero-text">
-          <h1>Speak it. Speaker types it.</h1>
-          <p class="lede">A small microphone bubble floats over every app on your phone. Tap it, talk, and your words go straight into the text box you are using: messages, email, notes, search, anything.</p>
-          <div class="hero-actions">
-            <a class="btn" href="download.html"><span class="arrow">&#9660;</span>Download Speaker<small>Free &middot; v1.0.0 &middot; 137 KB</small></a>
-            <a href="guide.html">How to set it up &raquo;</a>
-          </div>
-        </div>
-        <div class="phone" aria-hidden="true">
-          <div class="screen">
-            <div class="app-bar">&#9664;&nbsp; Messages</div>
-            <div class="msg">Are we still on for tomorrow?</div>
-            <div class="msg me">Yes, see you at ten.</div>
-            <div class="bubble"><svg viewBox="0 0 24 24"><path fill="#fff" d="M12,14c1.66,0 3,-1.34 3,-3V5c0,-1.66 -1.34,-3 -3,-3S9,3.34 9,5v6c0,1.66 1.34,3 3,3zM17.3,11c0,3 -2.54,5.1 -5.3,5.1S6.7,14 6.7,11H5c0,3.41 2.72,6.23 6,6.72V21h2v-3.28c3.28,-0.48 6,-3.3 6,-6.72h-1.7z"/></svg></div>
-            <div class="draft">sure thing i'll bring the slides and um the printed copies too
-              <div class="draft-chips"><span>&#10005;</span><span>More</span><span class="send">&#10024; Send</span></div>
-            </div>
-            <div class="inputbar">Type a message</div>
-          </div>
-        </div>
-      </section>
-
-      <h2>What Speaker does</h2>
-      <div class="features">
-        <div class="feature"><span class="ico">&#9679;</span>
-          <h3>Floating mic bubble</h3>
-          <p>Sits on top of every app. Tap to start, tap to stop, drag it anywhere on the screen.</p></div>
-        <div class="feature"><span class="ico">&#9998;</span>
-          <h3>Types where your cursor is</h3>
-          <p>Your words land in the focused text box. If an app doesn't accept typing, they go to the clipboard.</p></div>
-        <div class="feature"><span class="ico">&#8734;</span>
-          <h3>Talk as long as you like</h3>
-          <p>Dictation keeps going, phrase by phrase, until you tap again. It doesn't stop when you pause.</p></div>
-        <div class="feature"><span class="ico">&#10024;</span>
-          <h3>Optional AI rewrite</h3>
-          <p>Say it your way, check and edit the draft, then tap Send. An AI tidies the whole thing at once.</p></div>
-        <div class="feature"><span class="ico">&#9881;</span>
-          <h3>Pick your speech engine</h3>
-          <p>Use your phone's free built-in recognizer, or connect OpenAI, Groq, Gemini or Deepgram with your own key.</p></div>
-        <div class="feature"><span class="ico">&#9733;</span>
-          <h3>Many ways to start</h3>
-          <p>The bubble, a Quick Settings tile, the notification button, or the big button in the app.</p></div>
-      </div>
-      <p class="small" style="margin-top:8px">The phone picture above is an illustration.</p>
-
-      <h2>How it works</h2>
-      <ol class="steps">
-        <li><strong>Tap the bubble</strong> while you're in any app. It turns red and starts listening.</li>
-        <li><strong>Speak normally.</strong> Speaker types each phrase into your text box as you pause.</li>
-        <li><strong>Tap again to stop.</strong> That's it. No switching apps, no copy and paste.</li>
-      </ol>
-      <p>With <strong>AI rewrite</strong> turned on, nothing is typed while you talk. Your words collect in a small card next to the bubble, where you can fix them. Tap <strong>&#10024; Send</strong> (or the bubble) and the cleaned-up text is typed in one go. When no text box is selected, it's saved to the clipboard.</p>
-
-      <h2>Your words stay yours</h2>
-      <ul class="checks">
-        <li>No account, no sign-up, no ads and no analytics.</li>
-        <li>We have no servers. Nothing you say is ever sent to us.</li>
-        <li>The built-in engine needs no key at all. Online engines are only used if you add your own key.</li>
-        <li>Keys and settings stay in the app's private storage on your phone.</li>
-      </ul>
-      <p>Read the full <a href="privacy.html">privacy policy</a>.</p>
-
-      <a class="top-link" href="#top">Back to top &uarr;</a>
-    </main>
-
-    <aside class="side">
-      <div class="panel">
-        <h2 class="panel-h">Download Now</h2>
-        <div class="panel-b">
-          <a class="btn btn-wide" href="download.html"><span class="arrow">&#9660;</span>Get Speaker<small>Free for Android</small></a>
-          <p class="small" style="margin-top:8px;text-align:center">Installs directly from this site. Google Play listing coming soon.</p>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2 class="panel-h grey">At a Glance</h2>
-        <div class="panel-b">
-          <table class="specs">
-            <tr><th>Version</th><td>1.0.0</td></tr>
-            <tr><th>Released</th><td>22 Nov 2026</td></tr>
-            <tr><th>Size</th><td>137 KB</td></tr>
-            <tr><th>Requires</th><td>Android 8.0 or later</td></tr>
-            <tr><th>Price</th><td>Free</td></tr>
-            <tr><th>Ads</th><td>None</td></tr>
-          </table>
-        </div>
-      </div>
-
-      <div class="panel">
-        <h2 class="panel-h grey">What's New</h2>
-        <div class="panel-b">
-          <ul class="news">
-            <li><span class="date">22 Nov 2026</span>Speaker 1.0.0 is here! <span class="new">NEW</span><br>AI rewrite with an editable draft card and a quick menu on the bubble.</li>
-            <li><span class="date">Coming soon</span>Speaker on Google Play.</li>
-          </ul>
-        </div>
-      </div>
-
-      <div class="seal">100% Free &middot; No Ads<span>No account. No tracking. No servers.</span></div>
-    </aside>
+<!-- ============ HERO ============ -->
+<section class="hero"><div class="wrap">
+  <div class="hero-copy">
+    <span class="eyebrow">Voice typing for Android</span>
+    <h1>Talk instead of type.<br>In every app.</h1>
+    <p class="lead">Speaker puts a small microphone on top of everything on your phone. Tap it, speak naturally, and your words are typed straight into the message, email or note you're writing.</p>
+    <div class="hero-actions">
+      <a class="btn btn-lg" href="download.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+        Download for Android
+      </a>
+      <a class="btn btn-lg btn-ghost" href="#how">See how it works</a>
+    </div>
+    <div class="hero-meta"><span>Free</span><span>Android 8.0 and later</span><span>No account needed</span></div>
   </div>
 
-  <footer class="footer">
-    <nav><a href="index.html">Home</a> | <a href="download.html">Download</a> | <a href="guide.html">Setup Guide</a> | <a href="faq.html">FAQ</a> | <a href="privacy.html">Privacy Policy</a></nav>
-    <div>&copy; 2026 [DEVELOPER NAME]. All rights reserved. &middot; Contact: <a href="mailto:[CONTACT EMAIL]">[CONTACT EMAIL]</a></div>
-    <div class="tiny">Android is a trademark of Google LLC. Speaker is not affiliated with Google, OpenAI, Anthropic, Groq or Deepgram.</div>
-  </footer>
+  <div class="hero-visual" aria-hidden="true">
+    <div class="device sm">
+      <div class="screen">
+        <div class="status"><span>9:41</span><span>&#9679;&#9679;&#9679;</span></div>
+        <div class="settings">
+          <div class="s-head"><b>Speaker</b><span>Voice typing for every app</span></div>
+          <div class="s-card"><div class="t">Speech engine</div>
+            <div class="s-row">Engine <span class="s-sel">Groq</span></div>
+            <div class="s-row">Model <span class="s-sel">whisper-large-v3</span></div>
+            <div class="s-row">Language <span class="s-sel">Auto</span></div>
+          </div>
+          <div class="s-card"><div class="t">AI rewrite</div>
+            <div class="s-row">Rewrite before typing <span class="s-tog"></span></div>
+            <div class="s-row">Provider <span class="s-sel">Claude</span></div>
+            <div class="s-row">Keep recent dictations <span class="s-tog off"></span></div>
+          </div>
+          <div class="s-card"><div class="t">Floating bubble</div>
+            <div class="s-row">Show over other apps <span class="s-tog"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="device">
+      <div class="screen">
+        <div class="status"><span>9:41</span><span>&#9679;&#9679;&#9679;</span></div>
+        <div class="appbar"><span class="av"></span>Alex</div>
+        <div class="chat">
+          <div class="msg">Are we still on for tomorrow's review?</div>
+          <div class="msg me">Yes, ten o'clock in the main room.</div>
+          <div class="msg">Great. Can you bring the printed copies?</div>
+        </div>
+        <div class="mic-bubble live"><svg viewBox="0 0 24 24"><path fill="#fff" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg></div>
+        <div class="compose"><span>Sure, I'll bring them along<span class="caret"></span></span><span class="send-ic"></span></div>
+      </div>
+    </div>
+  </div>
+</div></section>
 
-</div>
+<!-- ============ KEY POINTS ============ -->
+<div class="points"><div class="wrap">
+  <div class="point">
+    <h4><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></span>Works in any app</h4>
+    <p>Messages, email, notes, browsers, documents.</p>
+  </div>
+  <div class="point">
+    <h4><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg></span>Optional AI rewrite</h4>
+    <p>Edit your words first, then send once for clean text.</p>
+  </div>
+  <div class="point">
+    <h4><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></span>Your choice of engine</h4>
+    <p>Free on-device recognition or the provider you prefer.</p>
+  </div>
+  <div class="point">
+    <h4><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></span>Private by design</h4>
+    <p>No account, no ads, no analytics, no servers of ours.</p>
+  </div>
+</div></div>
+
+<!-- ============ FEATURES ============ -->
+<section class="band" id="features"><div class="wrap">
+  <div class="feature-row">
+    <div class="feature-copy">
+      <span class="eyebrow">Floating microphone</span>
+      <h2>One bubble. Every app.</h2>
+      <p class="lead">There's no keyboard to switch and nothing to copy and paste. The Speaker bubble stays at the edge of your screen, ready whenever you need it.</p>
+      <ul class="ticks">
+        <li>Tap to start, tap again to stop. Drag it anywhere.</li>
+        <li>Words are typed where your cursor is, phrase by phrase.</li>
+        <li>Keeps listening through pauses, so you can stop and think.</li>
+        <li>If an app doesn't accept typing, your words go to the clipboard instead.</li>
+      </ul>
+    </div>
+    <div class="feature-art" aria-hidden="true">
+      <div class="device">
+        <div class="screen">
+          <div class="status"><span>9:41</span><span>&#9679;&#9679;&#9679;</span></div>
+          <div class="appbar mail">New message</div>
+          <div class="chat" style="font-size:11.5px;color:#333;line-height:1.55">
+            <div style="padding:6px 2px;border-bottom:1px solid #dde1ea">To: team@company.com</div>
+            <div style="padding:6px 2px;border-bottom:1px solid #dde1ea">Subject: Notes from today</div>
+            <div style="padding:10px 2px">Hi all, thanks for joining today. The main points were the launch date, the budget review and next steps for the design work<span class="caret" style="display:inline-block;width:1.5px;height:13px;background:#2f6fe0;vertical-align:-2px"></span></div>
+          </div>
+          <div class="mic-bubble live" style="top:58%"><svg viewBox="0 0 24 24"><path fill="#fff" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<section class="band soft"><div class="wrap">
+  <div class="feature-row flip">
+    <div class="feature-copy">
+      <span class="eyebrow">AI rewrite</span>
+      <h2>Say it your way. Send it polished.</h2>
+      <p class="lead">Turn on AI rewrite and Speaker collects what you say in a small draft card instead of typing it straight away. Read it, fix a word, then send the whole thing at once.</p>
+      <ul class="ticks">
+        <li>The whole draft goes to the AI in one go, so it keeps the full context.</li>
+        <li>Tap the text in the card to edit it before sending.</li>
+        <li>Write your own prompt: tidy punctuation, formal tone, bullet points, translation.</li>
+        <li>Works with OpenAI, Anthropic Claude, Google Gemini, Groq or your own server.</li>
+      </ul>
+    </div>
+    <div class="feature-art" aria-hidden="true">
+      <div class="device">
+        <div class="screen">
+          <div class="status"><span>9:41</span><span>&#9679;&#9679;&#9679;</span></div>
+          <div class="appbar"><span class="av"></span>Project group</div>
+          <div class="chat">
+            <div class="msg">Who can send the summary to the client?</div>
+          </div>
+          <div class="mic-bubble"><svg viewBox="0 0 24 24"><path fill="#fff" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z"/></svg></div>
+          <div class="draft">um yeah i can do it i'll send the summary tonight after i check the numbers with priya
+            <div class="live-line">&#127908; listening&hellip;</div>
+            <div class="chips"><span>&#10005;</span><span>&#127908; More</span><span class="go">&#10024; Send</span></div>
+          </div>
+          <div class="compose"><span style="color:#8a90a2">Message</span><span class="send-ic"></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div></section>
+
+<!-- ============ HOW IT WORKS ============ -->
+<section class="band" id="how"><div class="wrap">
+  <div class="section-head">
+    <span class="eyebrow">How it works</span>
+    <h2>Ready in a couple of minutes</h2>
+    <p>Install the app, allow a few permissions, and start talking.</p>
+  </div>
+  <div class="grid-3">
+    <div class="card"><span class="step-num">1</span>
+      <h3>Install and set up</h3>
+      <p>Download Speaker and follow the short setup card: microphone, the floating bubble and auto-typing.</p></div>
+    <div class="card"><span class="step-num">2</span>
+      <h3>Pick an engine</h3>
+      <p>Start with your phone's free built-in recognition, or add a key for OpenAI, Groq, Gemini or Deepgram.</p></div>
+    <div class="card"><span class="step-num">3</span>
+      <h3>Tap and talk</h3>
+      <p>Open any app, tap into a text box, tap the bubble and speak. Tap again when you're done.</p></div>
+  </div>
+</div></section>
+
+<!-- ============ ENGINES ============ -->
+<section class="band soft"><div class="wrap">
+  <div class="section-head">
+    <span class="eyebrow">Speech engines</span>
+    <h2>Use the engine that suits you</h2>
+    <p>Speaker works with your phone's own speech recognition or with the leading speech services, using your own key. You can change model names any time, so new models work without an app update.</p>
+  </div>
+  <div class="scroll-x">
+  <table class="spec-table">
+    <tr><th>Engine</th><th>Key</th><th>Best for</th></tr>
+    <tr><td>Android built-in</td><td>Not needed</td><td>Getting started at no cost. Runs on the phone where supported.</td></tr>
+    <tr><td>Groq</td><td>Your own</td><td>Very fast Whisper transcription, with a free tier.</td></tr>
+    <tr><td>OpenAI</td><td>Your own</td><td>High accuracy across accents and technical vocabulary.</td></tr>
+    <tr><td>Google Gemini</td><td>Your own</td><td>Multilingual dictation with Gemini models.</td></tr>
+    <tr><td>Deepgram</td><td>Your own</td><td>Fast, accurate Nova speech models.</td></tr>
+    <tr><td>Custom</td><td>Your own</td><td>Any OpenAI-compatible server, including self-hosted ones.</td></tr>
+  </table>
+  </div>
+</div></section>
+
+<!-- ============ MORE FEATURES ============ -->
+<section class="band"><div class="wrap">
+  <div class="section-head">
+    <span class="eyebrow">Built for everyday use</span>
+    <h2>Small details that add up</h2>
+  </div>
+  <div class="grid-4">
+    <div class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 14h3"/></svg></span>
+      <h3>Quick Settings tile</h3><p>Add the Dictate tile and start from the notification shade in any app.</p></div>
+    <div class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 003.4 0"/></svg></span>
+      <h3>Notification controls</h3><p>A Dictate / Stop button is always one swipe away while Speaker runs.</p></div>
+    <div class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+      <h3>Recent dictations</h3><p>Optionally keep your last 50 dictations and their AI versions on the phone, ready to copy.</p></div>
+    <div class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg></span>
+      <h3>Quick menu</h3><p>Long-press the bubble to switch AI rewrite on or off, or jump to the app.</p></div>
+  </div>
+</div></section>
+
+<!-- ============ PRIVACY ============ -->
+<section class="band dark"><div class="wrap">
+  <div class="section-head">
+    <span class="eyebrow" style="color:#a9b4ff">Privacy</span>
+    <h2>Your words stay between you and the services you choose</h2>
+    <p>Speaker has no servers. We never receive your voice, your text or your keys.</p>
+  </div>
+  <div class="grid-3">
+    <div class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/><path d="M3 3l18 18"/></svg></span>
+      <h3>No account</h3><p>No sign-up, no email address, no profile. Install it and use it.</p></div>
+    <div class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 018 0v4"/></svg></span>
+      <h3>Keys stay on your phone</h3><p>API keys live in the app's private storage, are left out of backups, and only go to their own provider.</p></div>
+    <div class="card"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/><circle cx="12" cy="12" r="9"/></svg></span>
+      <h3>No ads or tracking</h3><p>No analytics, no advertising SDKs, nothing running in the background to profile you.</p></div>
+  </div>
+  <p class="center" style="margin:36px 0 0"><a href="privacy.html" style="color:#c4bdff">Read the privacy policy &rarr;</a></p>
+</div></section>
+
+<!-- ============ CTA ============ -->
+<section class="cta"><div class="wrap">
+  <h2>Start speaking instead of typing</h2>
+  <p>Speaker is free to download for Android 8.0 and later.</p>
+  <a class="btn btn-lg" href="download.html">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>
+    Download Speaker 1.0.0
+  </a>
+  <div class="fine">Google Play listing coming soon.</div>
+</div></section>
+
+<footer class="site-footer">
+  <div class="wrap cols">
+    <div class="about">
+      <a class="logo" href="index.html"><img src="assets/logo.svg" alt="" width="38" height="38"><span>Speaker</span></a>
+      <p>Voice typing for every Android app. Speak naturally and your words appear wherever you're writing.</p>
+    </div>
+    <div><h4>Product</h4><ul>
+      <li><a href="index.html#features">Features</a></li>
+      <li><a href="download.html">Download</a></li>
+      <li><a href="download.html#releases">Release notes</a></li>
+    </ul></div>
+    <div><h4>Support</h4><ul>
+      <li><a href="guide.html">Setup guide</a></li>
+      <li><a href="faq.html">FAQ</a></li>
+      <li><a href="mailto:[CONTACT EMAIL]">Contact us</a></li>
+    </ul></div>
+    <div><h4>Company</h4><ul>
+      <li><a href="privacy.html">Privacy policy</a></li>
+      <li><a href="mailto:[CONTACT EMAIL]">[CONTACT EMAIL]</a></li>
+    </ul></div>
+  </div>
+  <div class="base"><div class="wrap">
+    <span>&copy; 2026 [DEVELOPER NAME]. All rights reserved.</span>
+    <span>Android is a trademark of Google LLC. Other names are trademarks of their owners.</span>
+  </div></div>
+</footer>
+
 </body>
 </html>
