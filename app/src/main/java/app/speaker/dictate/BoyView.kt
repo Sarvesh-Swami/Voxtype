@@ -3,31 +3,33 @@ package app.speaker.dictate
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.DashPathEffect
+import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.RectF
+import android.graphics.RadialGradient
+import android.graphics.Shader
 import android.os.SystemClock
 import android.view.View
-import android.view.animation.OvershootInterpolator
 import kotlin.math.PI
+import kotlin.math.acos
 import kotlin.math.cos
-import kotlin.math.floor
+import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
 
 /**
- * The floating bubble's character: a boy in a cap and colourful jacket, holding an open laptop, on a
- * transparent background. Drawn in code (vector shapes in a 100 x 138 box) so each part can move.
+ * The floating bubble's character, on a transparent background: a young guy in a green jacket, seen from
+ * the side, leaning his back against the screen edge with his legs crossed. Drawn in code in a 70 x 150 box
+ * (faces right, back against the left edge; mirrored when docked on the right).
  *
- *  - [Mode.VIBING]   (not dictating): headphones on, eyes closed, head bopping, music notes, equalizer on
- *                    the laptop. Settles into a still pose after a while to save battery.
- *  - [Mode.LISTENING] headphones slide down to his neck, eyes open, red camera light on the laptop.
- *                    While [speaking] (or after [nudge]) his hands type and lines appear on the screen.
- *  - [Mode.THINKING]  (AI rewrite / finishing): looks up, dots bounce on the screen.
+ *  - [Mode.VIBING]    headphones on, eyes closed, a slight nod and toe tap; the laptop hangs closed at his side.
+ *                     Goes still after a while to save battery.
+ *  - [Mode.LISTENING] headphones slide down to his neck, he raises the laptop and opens the lid (we only see its
+ *                     back), and the screen light falls on his face. He types while [speaking] or after [nudge].
+ *  - [Mode.THINKING]  same pose, hands still, the screen light pulses softly.
  *
- * Respects "remove animations": with animators disabled it shows still poses.
+ * With system animations off he switches between still poses.
  */
 class BoyView(context: Context) : View(context) {
 
@@ -36,9 +38,9 @@ class BoyView(context: Context) : View(context) {
     var mode = Mode.VIBING
         set(v) {
             if (field == v) return
-            if (v == Mode.LISTENING && field == Mode.VIBING) progress = 0f
             field = v
-            setHeadphones(if (v == Mode.VIBING) 0f else 1f)
+            qFrom = q(now()); qStart = now()
+            qTo = if (v == Mode.VIBING) 0f else 1f
             wake()
         }
 
@@ -46,7 +48,7 @@ class BoyView(context: Context) : View(context) {
     var speaking = false
         set(v) { field = v; if (v) lastNudge = now(); wake() }
 
-    /** Mirror so he faces the middle of the screen when docked on the right edge. */
+    /** Mirror so he leans on the right edge and faces left. */
     var faceLeft = false
         set(v) { if (field != v) { field = v; invalidate() } }
 
@@ -60,32 +62,26 @@ class BoyView(context: Context) : View(context) {
         invalidate()
     }
 
-    // ---------------------------------------------------------------- timing state
+    // ------------------------------------------------------------------ timing
 
     private fun now() = SystemClock.uptimeMillis()
     private val start = now()
     private var lastFrame = 0L
     private var lastActivity = now()
     private var lastNudge = 0L
-    private var hpFrom = 0f
-    private var hpTo = 0f
-    private var hpStart = 0L
-    private var typeAmt = 0f       // 0..1, eased toward "typing"
-    private var vibeAmt = 1f       // 0..1, eased toward "vibing"
-    private var progress = 0f      // typed amount, in screen-line units
-    private val overshoot = OvershootInterpolator(1.8f)
+    private var qFrom = 0f
+    private var qTo = 0f
+    private var qStart = 0L
+    private var typeAmt = 0f
+    private var vibeAmt = 1f
     private val tick = Runnable { invalidate() }
 
-    private fun setHeadphones(target: Float) {
-        hpFrom = headphones(now())
-        hpTo = target
-        hpStart = now()
-    }
-
-    private fun headphones(t: Long): Float {
-        if (!ValueAnimator.areAnimatorsEnabled()) return hpTo
-        val u = ((t - hpStart) / HP_MS.toFloat()).coerceIn(0f, 1f)
-        return hpFrom + (hpTo - hpFrom) * overshoot.getInterpolation(u)
+    /** Activation progress 0 (vibing) .. 1 (laptop open). Phases: headphones, raise, lid. */
+    private fun q(t: Long): Float {
+        if (!ValueAnimator.areAnimatorsEnabled()) return qTo
+        val dur = if (qTo > qFrom) OPEN_MS else CLOSE_MS
+        val u = ((t - qStart) / dur.toFloat()).coerceIn(0f, 1f)
+        return qFrom + (qTo - qFrom) * u
     }
 
     override fun onDetachedFromWindow() {
@@ -93,88 +89,67 @@ class BoyView(context: Context) : View(context) {
         super.onDetachedFromWindow()
     }
 
-    // ---------------------------------------------------------------- paints and static shapes
+    // ------------------------------------------------------------------ shapes (viewport units)
+
+    private val head = svg("M49 7.5 C43.2 7.5 39.2 11.6 39.2 17.4 C39.2 21.8 40.9 25.2 43.6 26.8 C45.2 27.8 46.4 28.4 47.6 28.8 C50 29.6 52.4 29.8 54 29.2 C55.2 28.8 55.8 28.2 55.8 27.4 L56.2 25.8 L57.1 24.6 L56.8 23.6 L57.4 23 L59.3 21.8 C59.4 21.2 58.4 20 57.8 18.8 L58.2 16 C58.2 12.6 56.4 9.4 53.4 8.2 C52 7.7 50.5 7.5 49 7.5 Z")
+    private val faceRim = svg("M57.8 13 L58.2 16 L57.8 18.8 C58.4 20 59.4 21.2 59.3 21.8 L57.4 23 L57.1 24.6 L56.2 25.8 L55.8 27.4")
+    private val hair = svg("M39.4 19.5 C38.6 13 41.5 7.2 48.5 6.2 C53.5 5.6 57.6 7.6 58.6 11 C59 12.4 58.6 13.6 57.6 14 C56.6 12.6 55 12 53.6 12.6 C52 13.2 50.2 12.8 49.2 12 C48.6 14 47.6 15.4 46.2 16 L45.4 21.2 C43.8 21.8 42.4 23 41.8 24.6 C40.6 23.2 39.6 21.4 39.4 19.5 Z")
+    private val ear = svg("M46.6 16.2 C48.6 16.2 49.4 18.4 49 20.6 C48.6 22.6 47.2 23.4 46 22.8 C45 21.4 45 17.6 46.6 16.2 Z")
+    private val neck = svg("M44.4 25 L51.6 27 L52.6 34 L44 35 Z")
+    private val collar = svg("M44.6 30.6 C47.8 29.6 51.4 30.2 53.6 31.8 L54.2 35.6 C51.2 34.4 48 34.2 44.6 34.8 Z")
+    private val torso = svg("M45 32.8 C42 33.2 40.2 35.4 39.8 39 C39.2 46 39.6 56 40.8 66 L41.4 73.2 L56.8 73.4 C57.6 66 57.8 60 58 54 C58.4 48 58.8 43 57.2 38.4 C56.2 35.8 54.8 34 53 33.4 C50.4 32.6 47.4 32.5 45 32.8 Z")
+    private val legBack = svg("M42.5 72 L55.5 72 C56.6 86 57.6 100 58.4 112 L61.4 134 L55 134.8 L51.8 112 C48.6 100 44.2 86 42.5 72 Z")
+    private val legFront = svg("M47 73.6 L57.6 73.6 C60.6 85 62.6 95 62.4 104.6 C61 113 55.6 123.4 50.6 133.2 L44.4 131.8 C48 122 53.4 112 55 104 C54.4 96 50.6 86 47 73.6 Z")
+    private val shoeBack = svg("M53.2 132.8 L61.6 133 C64.8 133.4 68.2 135.6 69.4 138.2 L69.6 140.6 L52.8 140.6 L52.6 135.6 Z")
+    private val shoeFront = svg("M43.6 130.6 L50.4 131.8 C53.4 133.4 56.2 136.6 56.6 139.4 L56.2 141.2 L47.8 140.8 C45.4 138.8 43.6 134.8 43.6 130.6 Z")
+    private val soleFront = svg("M47.8 140.8 L56.2 141.2 L56.4 142.4 L48.8 142.2 Z")
+
+    // ------------------------------------------------------------------ paints
 
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
-    private val ink = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val rim = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE; strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.ROUND
-        color = INK; strokeWidth = OUTLINE
+        color = RIM; strokeWidth = 0.7f
     }
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE; strokeJoin = Paint.Join.ROUND; strokeCap = Paint.Cap.ROUND
     }
-    private val keys = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE; strokeWidth = 1.3f; color = 0xFF8E97B3.toInt()
-        pathEffect = DashPathEffect(floatArrayOf(2.2f, 1.1f), 0f)
-    }
+    private val shaded = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
     private val p = Path()
-    private val r = RectF()
 
-    private val legL = Path().apply {
-        moveTo(38f, 102f); lineTo(38.5f, 124f); quadTo(38.6f, 126f, 40.5f, 126f)
-        lineTo(47f, 126f); quadTo(48.6f, 126f, 48.7f, 124f); lineTo(49.6f, 102f); close()
-    }
-    private val legR = mirror(legL)
-    private val shoeL = Path().apply {
-        moveTo(32.5f, 131f); quadTo(32.5f, 125.4f, 38.5f, 125.4f); lineTo(46f, 125.4f)
-        quadTo(49.2f, 125.4f, 49.2f, 129f); lineTo(49.2f, 131f); close()
-    }
-    private val shoeR = mirror(shoeL)
-    private val torso = Path().apply {
-        moveTo(34f, 57.5f); quadTo(50f, 54.5f, 66f, 57.5f); quadTo(71f, 58.5f, 71f, 64f)
-        lineTo(71f, 100f); quadTo(71f, 104f, 67f, 104f); lineTo(33f, 104f)
-        quadTo(29f, 104f, 29f, 100f); lineTo(29f, 64f); quadTo(29f, 58.5f, 34f, 57.5f); close()
-    }
-    private val capDome = Path().apply {
-        moveTo(33.4f, 34f); cubicTo(33.4f, 16.8f, 66.6f, 16.8f, 66.6f, 34f); quadTo(50f, 30.5f, 33.4f, 34f); close()
-    }
-    private val capBrim = Path().apply {
-        moveTo(28.5f, 34f); quadTo(45f, 42.5f, 64.5f, 35.6f); quadTo(48f, 35.4f, 33.4f, 32.4f); close()
-    }
-    private val hair = Path().apply {
-        moveTo(33.6f, 39f); quadTo(32.6f, 30f, 38f, 28f); lineTo(62f, 28f); quadTo(67.4f, 30f, 66.4f, 39f)
-        lineTo(63.4f, 37f); lineTo(36.6f, 37f); close()
-    }
-    private val fringe = Path().apply {
-        moveTo(38f, 35f); lineTo(40.5f, 38.8f); lineTo(42.5f, 35.5f); lineTo(45f, 39f); lineTo(47f, 35.5f); close()
-    }
-    private val lid = RectF(28.5f, 69f, 71.5f, 94f)
-    private val screen = RectF(31.5f, 72f, 68.5f, 91f)
-    private val base = Path().apply {
-        moveTo(25.5f, 94f); lineTo(74.5f, 94f); lineTo(72.2f, 99.6f); quadTo(71.8f, 100.6f, 70.6f, 100.6f)
-        lineTo(29.4f, 100.6f); quadTo(28.2f, 100.6f, 27.8f, 99.6f); close()
+    private fun lin(x0: Float, y0: Float, x1: Float, y1: Float, vararg c: Int) =
+        LinearGradient(x0, y0, x1, y1, c, null, Shader.TileMode.CLAMP)
+
+    private val gLegBack = lin(42f, 0f, 60f, 0f, DEN1, DEN2)
+    private val gLegFront = lin(46f, 0f, 63f, 0f, DEN2, DEN3, DEN2)
+    private val gShoe = lin(0f, 131f, 0f, 141f, SHOE, SHOE_D)
+    private val gTorso = lin(40f, 0f, 58f, 0f, JKT1, JKT2, JKT3)
+    private val gNeck = lin(44f, 0f, 52f, 0f, SKIN_D, SKIN)
+    private val gHead = lin(39f, 0f, 59f, 0f, SKIN_D, SKIN, SKIN_L)
+    private val gHair = lin(0f, 6f, 0f, 24f, HAIR_L, HAIR)
+
+    private fun Canvas.shade(path: Path, shader: Shader, outline: Boolean = true) {
+        shaded.shader = shader; drawPath(path, shaded)
+        if (outline) drawPath(path, rim)
     }
 
-    private fun mirror(src: Path) = Path(src).apply {
-        transform(android.graphics.Matrix().apply { setScale(-1f, 1f, 50f, 0f) })
+    private fun Canvas.solid(path: Path, color: Int, outline: Boolean = true) {
+        fill.color = color; drawPath(path, fill)
+        if (outline) drawPath(path, rim)
     }
 
-    private fun Canvas.shape(path: Path, color: Int) {
-        fill.color = color; drawPath(path, fill); drawPath(path, ink)
-    }
-
-    private fun Canvas.dot(x: Float, y: Float, rad: Float, color: Int, outline: Boolean = true) {
-        fill.color = color; drawCircle(x, y, rad, fill)
-        if (outline) drawCircle(x, y, rad, ink)
-    }
-
-    private fun Canvas.oval(cx: Float, cy: Float, rx: Float, ry: Float, color: Int, outline: Boolean = true) {
-        r.set(cx - rx, cy - ry, cx + rx, cy + ry)
-        fill.color = color; drawOval(r, fill)
-        if (outline) drawOval(r, ink)
-    }
-
-    /** Thick outlined stroke (sleeves, headphone band). */
-    private fun Canvas.tube(path: Path, width: Float, color: Int) {
-        stroke.color = INK; stroke.strokeWidth = width + OUTLINE * 2; drawPath(path, stroke)
-        stroke.color = color; stroke.strokeWidth = width; drawPath(path, stroke)
-    }
-
-    private fun Canvas.line(x1: Float, y1: Float, x2: Float, y2: Float, color: Int, w: Float) {
+    private fun Canvas.seg(x1: Float, y1: Float, x2: Float, y2: Float, color: Int, w: Float) {
         stroke.color = color; stroke.strokeWidth = w; drawLine(x1, y1, x2, y2, stroke)
     }
 
-    // ---------------------------------------------------------------- drawing
+    /** Sleeve: two-bone arm with a soft dark edge. */
+    private fun Canvas.arm(sx: Float, sy: Float, ex: Float, ey: Float, hx: Float, hy: Float, w: Float, color: Int) {
+        p.reset(); p.moveTo(sx, sy); p.lineTo(ex, ey); p.lineTo(hx, hy)
+        stroke.color = RIM; stroke.strokeWidth = w + 1.6f; drawPath(p, stroke)
+        stroke.color = color; stroke.strokeWidth = w; drawPath(p, stroke)
+    }
+
+    // ------------------------------------------------------------------ drawing
 
     override fun onDraw(canvas: Canvas) {
         val t = now()
@@ -183,329 +158,302 @@ class BoyView(context: Context) : View(context) {
         val anim = ValueAnimator.areAnimatorsEnabled()
         val sec = (t - start) / 1000f
 
-        // Eased amounts.
         val typing = mode == Mode.LISTENING && (speaking || t - lastNudge < NUDGE_MS)
-        val typeTarget = if (typing) 1f else 0f
-        typeAmt += (typeTarget - typeAmt) * min(1f, dt * if (typing) 14f else 5f)
-        if (!anim) typeAmt = 0f
+        typeAmt += ((if (typing) 1f else 0f) - typeAmt) * min(1f, dt * if (typing) 14f else 5f)
         val vibing = mode == Mode.VIBING && t - lastActivity < VIBE_MS && anim
         vibeAmt += ((if (vibing) 1f else 0f) - vibeAmt) * min(1f, dt * 3f)
-        if (!anim) vibeAmt = 0f
+        if (!anim) { typeAmt = 0f; vibeAmt = 0f }
         if (vibeAmt < 0.01f) vibeAmt = 0f
-        progress += dt * typeAmt * 2.4f
 
-        val hp = headphones(t)
+        val q = q(t)
+        val hpP = smooth(0f, 0.35f, q)
+        val raise = smooth(0.22f, 0.7f, q)
+        val lid = smooth(0.6f, 1f, q)
         val beat = (sec % BEAT_S) / BEAT_S
-        val tilt = sin(beat * 2 * PI).toFloat() * 4.5f * vibeAmt
-        val bob = ((1 - cos(beat * 4 * PI)) / 2).toFloat() * 1.3f * vibeAmt
+        val nod = sin(beat * 2 * PI).toFloat() * 2.5f * vibeAmt * (1 - hpP)
         val tap = max(0f, sin(beat * 2 * PI).toFloat()) * vibeAmt
+        val headTilt = lerp(nod, 5f, raise)
+        val flicker = if (typeAmt > 0.05f) 0.92f + 0.08f * sin(sec * 37f) else 1f
+        val pulse = if (mode == Mode.THINKING) 0.82f + 0.18f * sin(sec * 2 * PI.toFloat() * 0.8f) else 1f
+        val glow = smooth(0.25f, 0.9f, lid) * flicker * pulse
 
         canvas.save()
         val s = min(width / VW, height / VH)
         canvas.translate((width - VW * s) / 2f, height - VH * s)
         canvas.scale(s, s)
         if (faceLeft) canvas.scale(-1f, 1f, VW / 2f, 0f)
+        canvas.translate(SHIFT, 0f)
+        canvas.rotate(LEAN, 50f, 142f)
 
-        // Head pivot and cup positions (cups follow the head while on it).
-        val px = 50f; val py = 56f
-        fun rot(x: Float, y: Float, deg: Float): Pair<Float, Float> {
-            val a = Math.toRadians(deg.toDouble())
-            val c = cos(a).toFloat(); val sn = sin(a).toFloat()
-            return (px + (x - px) * c - (y - py) * sn) to (py + (x - px) * sn + (y - py) * c)
-        }
-        val (hlx, hly) = rot(32.8f, 41f, tilt)
-        val (hrx, hry) = rot(67.2f, 41f, tilt)
-        val cupLx = lerp(hlx, 39.5f, hp); val cupLy = lerp(hly, 61.5f, hp) + bob
-        val cupRx = lerp(hrx, 60.5f, hp); val cupRy = lerp(hry, 61.5f, hp) + bob
-        val cupRx2 = lerp(4.2f, 5.2f, hp); val cupRy2 = lerp(5.8f, 3.8f, hp)
+        // Laptop frame: hinge position and rotation, lid opening angle.
+        val hx = lerp(51.8f, 82f, raise); val hy = lerp(90f, 56.4f, raise)
+        val ang = Math.toRadians(lerp(90f, 0f, raise).toDouble())
+        val ca = cos(ang).toFloat(); val sa = sin(ang).toFloat()
+        fun wx(lx: Float, ly: Float) = hx + lx * ca - ly * sa
+        fun wy(lx: Float, ly: Float) = hy + lx * sa + ly * ca
+        val th = Math.toRadians(lerp(0f, 106f, lid).toDouble())
+        val dX = -cos(th).toFloat(); val dY = -sin(th).toFloat()      // lid direction (local)
+        val nX = sin(th).toFloat(); val nY = -cos(th).toFloat()       // lid outer normal (local)
+        val lsx = wx(dX * 11.5f, dY * 11.5f); val lsy = wy(dX * 11.5f, dY * 11.5f) // screen light source
 
-        fun band() {
-            p.reset()
-            p.moveTo(cupLx, cupLy - cupRy2 * 0.6f)
-            val cy = lerp(2.5f + bob, 51f + bob, hp)
-            p.quadTo((cupLx + cupRx) / 2f, cy, cupRx, cupRy - cupRy2 * 0.6f)
-            canvas.tube(p, 2.2f, HP_BAND)
-        }
+        // Far arm (behind the body): hand in the pocket, then on the keyboard.
+        val tapY = typeAmt * max(0f, sin(sec * 44f)) * 1.6f
+        val sfx = 45.5f; val sfy = 38f
+        val hfx = lerp(46.5f, 69.5f, raise); val hfy = lerp(63f, 53.6f - tapY, raise)
+        val (efx, efy) = ik(sfx, sfy, hfx, hfy, 15.5f, 15f)
+        canvas.arm(sfx, sfy, efx, efy, hfx, hfy, 5.6f, JKT1)
 
-        // Band behind the neck once the headphones are down.
-        if (hp >= 0.5f) band()
-
-        // Legs and shoes (right foot taps to the beat).
-        canvas.shape(legL, JEANS)
-        canvas.shape(legR, JEANS)
-        canvas.line(38.8f, 121.5f, 48.6f, 121.5f, JEANS_DARK, 1.4f)
-        canvas.line(61.2f, 121.5f, 51.4f, 121.5f, JEANS_DARK, 1.4f)
-        drawShoe(canvas, shoeL, right = false)
+        // Legs: weight-bearing back leg, then the front leg crossing over it.
+        canvas.shade(legBack, gLegBack)
+        canvas.shade(shoeBack, gShoe)
+        fill.color = SOLE; canvas.drawRect(52.4f, 140.2f, 69.8f, 142.2f, fill)
+        p.reset(); p.moveTo(57.4f, 138.4f); p.quadTo(61f, 136.4f, 65f, 137.6f)
+        stroke.color = ACCENT; stroke.strokeWidth = 1f; canvas.drawPath(p, stroke)
+        canvas.shade(legFront, gLegFront)
+        p.reset(); p.moveTo(59.8f, 96f); p.quadTo(61.6f, 102f, 60.4f, 108f)
+        stroke.color = 0x14FFFFFF; stroke.strokeWidth = 1.4f; canvas.drawPath(p, stroke)
         canvas.save()
-        canvas.rotate(-tap * 9f, 52f, 133f) // heel stays down, toe lifts
-        drawShoe(canvas, shoeR, right = true)
+        canvas.rotate(-tap * 6f, 56f, 141.2f) // heel lifts on the beat, toe stays down
+        canvas.shade(shoeFront, gShoe)
+        canvas.solid(soleFront, SOLE, outline = false)
+        p.reset(); p.moveTo(47.4f, 136f); p.quadTo(50.8f, 134.6f, 54f, 137.4f)
+        stroke.color = ACCENT; stroke.strokeWidth = 1f; canvas.drawPath(p, stroke)
         canvas.restore()
-
-        // Everything above the knees bobs.
-        canvas.save()
-        canvas.translate(0f, bob)
 
         // Jacket.
-        canvas.shape(torso, JACKET)
-        p.reset(); p.moveTo(64f, 60f); p.quadTo(70f, 62f, 70f, 70f); p.lineTo(70f, 98f); p.lineTo(66f, 98f); p.close()
-        fill.color = JACKET_DARK; canvas.drawPath(p, fill)
-        r.set(29f, 99f, 71f, 104f); fill.color = TRIM; canvas.drawRoundRect(r, 2f, 2f, fill); canvas.drawRoundRect(r, 2f, 2f, ink)
-        canvas.line(50f, 61f, 50f, 70f, JACKET_DARK, 1.4f)
-
-        // Neck.
-        r.set(45.4f, 49f, 54.6f, 60f); fill.color = SKIN; canvas.drawRect(r, fill)
-        canvas.line(45.4f, 50f, 45.4f, 58f, INK, OUTLINE); canvas.line(54.6f, 50f, 54.6f, 58f, INK, OUTLINE)
-        fill.color = SKIN_SHADE; r.set(45.4f, 53f, 54.6f, 56f); canvas.drawRect(r, fill)
-        // Collar.
-        p.reset(); p.moveTo(41.5f, 57f); p.quadTo(50f, 62.5f, 58.5f, 57f)
-        canvas.tube(p, 2.6f, SLEEVE)
-
-        // Head (tilts to the beat).
+        canvas.shade(torso, gTorso)
         canvas.save()
-        canvas.rotate(tilt, px, py)
-        canvas.dot(33.6f, 41f, 3.4f, SKIN)
-        canvas.dot(66.4f, 41f, 3.4f, SKIN)
-        canvas.shape(hair, HAIR)
-        canvas.dot(50f, 38.5f, 16.8f, SKIN)
-        fill.color = HAIR; canvas.drawPath(fringe, fill)
-        drawFace(canvas, t, hp)
-        canvas.shape(capDome, CAP)
-        canvas.line(50f, 19.6f, 50.6f, 31f, CAP_DARK, 1.2f)
-        canvas.dot(43.6f, 26.8f, 3.2f, CAP_LOGO)
-        canvas.dot(42.8f, 25.9f, 0.9f, 0xFFFFFFFF.toInt(), outline = false)
-        canvas.dot(50f, 19.4f, 1.5f, CAP_DARK)
-        canvas.shape(capBrim, CAP_DARK)
+        canvas.clipPath(torso)
+        fill.color = BLACK; canvas.drawRect(38f, 70.4f, 60f, 74.4f, fill)
+        canvas.seg(38f, 70.6f, 60f, 70.6f, WHITE, 0.6f)
+        p.reset(); p.moveTo(56.8f, 38f); p.quadTo(57.8f, 56f, 56.6f, 70.4f)
+        stroke.color = JKT_D; stroke.strokeWidth = 0.7f; canvas.drawPath(p, stroke)
+        p.reset(); p.moveTo(50.5f, 34f); p.quadTo(53.8f, 48f, 51.6f, 70.4f)
+        stroke.color = WHITE; stroke.strokeWidth = 1.2f; canvas.drawPath(p, stroke)
+        p.reset(); p.moveTo(48.6f, 34f); p.quadTo(51.8f, 48f, 49.6f, 70.4f)
+        stroke.color = BLACK; stroke.strokeWidth = 1.4f; canvas.drawPath(p, stroke)
         canvas.restore()
 
-        // Band over the cap while the headphones are on.
-        if (hp < 0.5f) band()
+        canvas.shade(neck, gNeck, outline = false)
+        canvas.solid(collar, BLACK)
+        p.reset(); p.moveTo(44.8f, 31.6f); p.quadTo(49.4f, 30.4f, 53.8f, 32.8f)
+        stroke.color = WHITE; stroke.strokeWidth = 0.55f; canvas.drawPath(p, stroke)
 
-        // Sleeves (behind the laptop), laptop, then hands on the keyboard.
-        val wave = sec * 2 * PI * 7
-        val handL = -max(0f, sin(wave).toFloat()) * 2.2f * typeAmt
-        val handR = -max(0f, sin(wave + PI).toFloat()) * 2.2f * typeAmt
-        p.reset(); p.moveTo(32.5f, 63f); p.quadTo(23.5f, 82f, 37f, 95.5f + handL)
-        canvas.tube(p, 9f, SLEEVE)
-        p.reset(); p.moveTo(67.5f, 63f); p.quadTo(76.5f, 82f, 63f, 95.5f + handR)
-        canvas.tube(p, 9f, SLEEVE)
-
-        fill.color = LAPTOP; canvas.drawRoundRect(lid, 3f, 3f, fill); canvas.drawRoundRect(lid, 3f, 3f, ink)
-        fill.color = SCREEN; canvas.drawRoundRect(screen, 1.6f, 1.6f, fill)
-        drawScreen(canvas, t, sec, hp)
-        val led = when (mode) {
-            Mode.LISTENING -> REC.withAlpha(0.6f + 0.4f * sin(sec * 2 * PI * 1.2).toFloat())
-            Mode.THINKING -> CAP_LOGO
-            Mode.VIBING -> 0xFF9AA2B8.toInt()
-        }
-        canvas.dot(50f, 70.6f, 0.95f, led, outline = false)
-        canvas.shape(base, LAPTOP_DARK)
-        canvas.drawLine(31f, 96.8f, 69f, 96.8f, keys)
-
-        canvas.dot(37f, 95.6f + handL, 3.6f, TRIM)
-        canvas.dot(63f, 95.6f + handR, 3.6f, TRIM)
-        canvas.dot(38.2f, 97.2f + handL, 4f, SKIN)
-        canvas.dot(61.8f, 97.2f + handR, 4f, SKIN)
-        canvas.restore() // bob
-
-        // Headphone cups (on top: on the ears, or resting on the collar).
-        canvas.oval(cupLx, cupLy, cupRx2, cupRy2, HP_CUP)
-        canvas.oval(cupLx, cupLy, cupRx2 * 0.55f, cupRy2 * 0.62f, HP_CUP_IN, outline = false)
-        canvas.oval(cupRx, cupRy, cupRx2, cupRy2, HP_CUP)
-        canvas.oval(cupRx, cupRy, cupRx2 * 0.55f, cupRy2 * 0.62f, HP_CUP_IN, outline = false)
-
-        // Music notes float out of the headphones while he vibes.
-        if (hp < 0.35f && vibeAmt > 0f) {
-            drawNote(canvas, sec, 0f, cupRx, cupRy, NOTE_A)
-            drawNote(canvas, sec, 1.15f, cupRx, cupRy, NOTE_B)
+        // Head.
+        canvas.save()
+        canvas.rotate(headTilt, 47.5f, 28f)
+        canvas.shade(head, gHead)
+        canvas.save(); canvas.clipPath(head)
+        fill.color = 0x40784629; canvas.save(); canvas.rotate(-17f, 46f, 26f); canvas.drawOval(39f, 22.8f, 53f, 29.2f, fill); canvas.restore()
+        canvas.restore()
+        canvas.solid(ear, SKIN_D)
+        drawFace(canvas, t, q, raise)
+        canvas.shade(hair, gHair)
+        p.reset(); p.moveTo(44f, 9.4f); p.quadTo(50f, 6.8f, 55.6f, 8.8f)
+        stroke.color = 0x1FFFFFFF; stroke.strokeWidth = 0.8f; canvas.drawPath(p, stroke)
+        if (glow > 0.01f) {
+            // Screen light on his face (only where the head is).
+            canvas.save(); canvas.clipPath(head)
+            shaded.shader = RadialGradient(lsx, lsy, 26f,
+                intArrayOf(light(0.95f * glow), light2(0.55f * glow), light2(0f)), floatArrayOf(0f, 0.62f, 1f), Shader.TileMode.CLAMP)
+            canvas.drawRect(30f, 0f, 70f, 40f, shaded)
+            stroke.color = rimLight(0.8f * glow); stroke.strokeWidth = 1.3f; canvas.drawPath(faceRim, stroke)
+            canvas.restore()
         }
         canvas.restore()
 
-        scheduleNext(t, anim, hp)
-    }
-
-    private fun drawShoe(c: Canvas, shoe: Path, right: Boolean) {
-        c.shape(shoe, SHOE)
-        r.set(if (right) 50.8f else 32.5f, 130.6f, if (right) 67.5f else 49.2f, 134.2f)
-        fill.color = SOLE; c.drawRoundRect(r, 1.6f, 1.6f, fill); c.drawRoundRect(r, 1.6f, 1.6f, ink)
+        // Headphones: on his head, or resting around the neck.
+        val cupX = lerp(47.2f, 46.8f, hpP); val cupY = lerp(19.6f, 32.4f, hpP)
+        canvas.save()
         p.reset()
-        if (right) { p.moveTo(63f, 128.6f); p.quadTo(59f, 130.2f, 55f, 128.2f) } else { p.moveTo(37f, 128.6f); p.quadTo(41f, 130.2f, 45f, 128.2f) }
-        stroke.color = TRIM; stroke.strokeWidth = 1.5f; c.drawPath(p, stroke)
-    }
-
-    private fun drawFace(c: Canvas, t: Long, hp: Float) {
-        val eyesOpen = mode != Mode.VIBING || hp > 0.45f
-        val blink = mode == Mode.LISTENING && (t - start) % 3400 < 120
-        val lookUp = if (mode == Mode.THINKING) -1.3f else 0f
-        // Cheeks.
-        c.dot(39.6f, 46.6f, 2.5f, BLUSH, outline = false)
-        c.dot(60.4f, 46.6f, 2.5f, BLUSH, outline = false)
-        // Brows.
-        val browUp = if (mode == Mode.THINKING) -1.2f else if (eyesOpen) 0f else 0.7f
-        p.reset(); p.moveTo(41f, 37.6f + browUp * 0.3f); p.quadTo(43.5f, 36.2f + browUp * 0.3f, 46f, 37.4f + browUp * 0.3f)
-        stroke.color = HAIR; stroke.strokeWidth = 1.5f; c.drawPath(p, stroke)
-        p.reset(); p.moveTo(54f, 37.4f + browUp); p.quadTo(56.5f, 36.2f + browUp, 59f, 37.6f + browUp)
-        c.drawPath(p, stroke)
-        // Eyes.
-        if (eyesOpen && !blink) {
-            for (x in floatArrayOf(43.5f, 56.5f)) {
-                c.oval(x, 42.6f + lookUp, 2.3f, 2.9f, INK, outline = false)
-                c.dot(x + 0.8f, 41.5f + lookUp, 0.85f, 0xFFFFFFFF.toInt(), outline = false)
-            }
+        if (hpP < 0.5f) {
+            canvas.rotate(headTilt, 47.5f, 28f)
+            p.moveTo(46.8f, 15.4f); p.cubicTo(45.6f, 9.6f, 47.4f, 4.8f, 51.4f, 4.4f)
         } else {
-            stroke.color = INK; stroke.strokeWidth = 1.7f
-            for (x in floatArrayOf(43.5f, 56.5f)) {
-                p.reset(); p.moveTo(x - 2.4f, 43.2f); p.quadTo(x, 40.6f, x + 2.4f, 43.2f); c.drawPath(p, stroke)
-            }
+            p.moveTo(cupX - 1f, cupY - 2f); p.cubicTo(43f, 31f, 41f, 33f, 42.6f, 35.4f)
         }
-        // Mouth.
-        p.reset()
-        when {
-            !eyesOpen -> { // happy, singing along
-                p.moveTo(45.6f, 48f); p.quadTo(50f, 54f, 54.4f, 48f); p.close()
-                fill.color = MOUTH; c.drawPath(p, fill); c.drawPath(p, ink)
-            }
-            mode == Mode.THINKING -> { // "hmm" smirk
-                p.moveTo(47f, 49.2f); p.quadTo(50.6f, 50.9f, 53.6f, 48.4f)
-                stroke.color = INK; stroke.strokeWidth = 1.5f; c.drawPath(p, stroke)
-            }
-            else -> {
-                p.moveTo(46.4f, 48.8f); p.quadTo(50f, 51.6f, 53.6f, 48.8f)
-                stroke.color = INK; stroke.strokeWidth = 1.5f; c.drawPath(p, stroke)
-            }
+        stroke.color = RIM; stroke.strokeWidth = 2.6f; canvas.drawPath(p, stroke)
+        stroke.color = HP; stroke.strokeWidth = 1.8f; canvas.drawPath(p, stroke)
+        stroke.color = HP_L; stroke.strokeWidth = 0.5f; canvas.drawPath(p, stroke)
+        canvas.restore()
+        canvas.save()
+        canvas.translate(cupX, cupY)
+        canvas.rotate(lerp(0f, -50f, hpP))
+        fill.color = HP; canvas.drawOval(-3.3f, -4.5f, 3.3f, 4.5f, fill)
+        rim.strokeWidth = 0.6f; canvas.drawOval(-3.3f, -4.5f, 3.3f, 4.5f, rim); rim.strokeWidth = 0.7f
+        fill.color = HP_L; canvas.drawOval(-1.1f, -3.2f, 2.1f, 2f, fill)
+        fill.color = ACCENT; canvas.drawCircle(0.4f, -0.4f, 0.7f, fill)
+        canvas.restore()
+
+        // Laptop base, then the lid (only its outside is ever visible).
+        quad(canvas, wx(0f, 0f), wy(0f, 0f), wx(-24f, 0f), wy(-24f, 0f), wx(-24f, 1.9f), wy(-24f, 1.9f), wx(0f, 1.9f), wy(0f, 1.9f),
+            lin(wx(0f, 0f), wy(0f, 0f), wx(0f, 1.9f), wy(0f, 1.9f), LAP1, LAP2))
+        quad(canvas, wx(0f, 0f), wy(0f, 0f), wx(dX * 23f, dY * 23f), wy(dX * 23f, dY * 23f),
+            wx(dX * 23f + nX * 1.4f, dY * 23f + nY * 1.4f), wy(dX * 23f + nX * 1.4f, dY * 23f + nY * 1.4f),
+            wx(nX * 1.4f, nY * 1.4f), wy(nX * 1.4f, nY * 1.4f), null, LAP2)
+        if (glow > 0.01f) {
+            // A faint beam from the screen toward his face.
+            val tx = wx(dX * 22f, dY * 22f); val ty = wy(dX * 22f, dY * 22f)
+            val bx = wx(dX * 2f, dY * 2f); val by = wy(dX * 2f, dY * 2f)
+            shaded.shader = LinearGradient(lsx, lsy, 57f, 20f, light2(0.16f * glow), light2(0f), Shader.TileMode.CLAMP)
+            p.reset(); p.moveTo(tx, ty); p.lineTo(58f, 13f); p.lineTo(58f, 28f); p.lineTo(bx, by); p.close()
+            canvas.drawPath(p, shaded)
         }
+
+        // Near arm holds the laptop.
+        val snx = 48.6f; val sny = 38.4f
+        val hnx = lerp(50.6f, 61.5f, raise); val hny = lerp(69.5f, 58.4f, raise)
+        val (enx, eny) = ik(snx, sny, hnx, hny, 16f, 15.2f)
+        canvas.arm(snx, sny, enx, eny, hnx, hny, 6.6f, JKT2)
+        canvas.seg(snx + 1.4f, sny, enx + 1.2f, eny, 0x2EFFFFFF, 1.4f)
+        cuff(canvas, enx, eny, hnx, hny, 6.2f, 0.76f, 0.84f)
+        fill.color = SKIN; canvas.drawOval(hnx - 2.6f, hny - 2f, hnx + 3f, hny + 2.4f, fill)
+        canvas.drawOval(hnx - 2.6f, hny - 2f, hnx + 3f, hny + 2.4f, rim)
+        if (raise > 0.05f) {
+            fill.color = SKIN_D; canvas.drawOval(hfx - 2.6f, hfy - 2f, hfx + 3f, hfy + 2f, fill)
+            canvas.drawOval(hfx - 2.6f, hfy - 2f, hfx + 3f, hfy + 2f, rim)
+            cuff(canvas, efx, efy, hfx, hfy, 5f, 0.78f, 0.85f)
+        }
+        if (glow > 0.01f) {
+            canvas.save(); canvas.clipPath(torso)
+            shaded.shader = RadialGradient(lsx, lsy, 24f, light(0.4f * glow), light(0f), Shader.TileMode.CLAMP)
+            canvas.drawRect(30f, 25f, 70f, 80f, shaded)
+            canvas.restore()
+        }
+        canvas.restore()
+
+        scheduleNext(t, anim, q)
     }
 
-    private fun drawScreen(c: Canvas, t: Long, sec: Float, hp: Float) {
-        c.save()
-        c.clipRect(screen)
-        when {
-            mode == Mode.THINKING -> {
-                for (i in 0..2) {
-                    val up = max(0f, sin(sec * 2 * PI * 1.6 - i * 0.7).toFloat()) * 2.6f
-                    c.dot(44f + i * 6f, 83f - up, 1.8f, BAR_COLORS[i * 2], outline = false)
-                }
-                val tw = 0.6f + 0.4f * sin(sec * 2 * PI * 0.9).toFloat()
-                drawSparkle(c, 63.5f, 76f, 2.6f * tw)
-            }
-            mode == Mode.VIBING || hp < 0.5f -> {
-                // Equalizer.
-                for (i in 0 until 7) {
-                    val wave = 0.5f + 0.5f * sin(sec * 2 * PI * (1.3 + 0.19 * i) + i * 1.3).toFloat()
-                    val h = 3f + 13f * (0.25f + 0.75f * wave * vibeAmt)
-                    r.set(34f + i * 4.9f, 89.5f - h, 37.2f + i * 4.9f, 89.5f)
-                    fill.color = BAR_COLORS[i]; c.drawRoundRect(r, 1f, 1f, fill)
-                }
-            }
-            else -> drawText(c, t)
+    private fun cuff(c: Canvas, ex: Float, ey: Float, hx: Float, hy: Float, w: Float, a: Float, b: Float) {
+        val ax = lerp(ex, hx, a); val ay = lerp(ey, hy, a); val bx = lerp(ex, hx, b); val by = lerp(ey, hy, b)
+        c.seg(ax, ay, bx, by, BLACK, w)
+        c.seg(ax, ay, bx, by, WHITE, 0.5f)
+    }
+
+    private fun quad(c: Canvas, x1: Float, y1: Float, x2: Float, y2: Float, x3: Float, y3: Float, x4: Float, y4: Float,
+                     shader: Shader?, color: Int = 0) {
+        p.reset(); p.moveTo(x1, y1); p.lineTo(x2, y2); p.lineTo(x3, y3); p.lineTo(x4, y4); p.close()
+        if (shader != null) { shaded.shader = shader; c.drawPath(p, shaded) } else { fill.color = color; c.drawPath(p, fill) }
+        stroke.color = LAP_EDGE; stroke.strokeWidth = 0.5f; c.drawPath(p, stroke)
+    }
+
+    private fun drawFace(c: Canvas, t: Long, q: Float, raise: Float) {
+        val blink = mode != Mode.VIBING && (t - start) % 3400 < 120
+        val open = q > 0.12f && !blink
+        if (open) {
+            p.reset(); p.moveTo(53.4f, 17.6f); p.quadTo(55.1f, 16.7f, 56.7f, 17.4f); p.quadTo(55.2f, 18.5f, 53.4f, 17.6f)
+            fill.color = EYE_WHITE; c.drawPath(p, fill)
+            fill.color = IRIS; c.drawCircle(55.7f, 17.75f + raise * 0.25f, 0.9f, fill)
+            p.reset(); p.moveTo(53.2f, 17.5f); p.quadTo(55.1f, 16.3f, 56.9f, 17.2f)
+            stroke.color = IRIS; stroke.strokeWidth = 0.75f; c.drawPath(p, stroke)
+        } else {
+            p.reset(); p.moveTo(53.3f, 17.7f); p.quadTo(55.1f, 18.6f, 56.8f, 17.6f)
+            stroke.color = IRIS; stroke.strokeWidth = 0.8f; c.drawPath(p, stroke)
         }
-        c.restore()
+        val by = if (open) -0.1f else 0.2f
+        p.reset(); p.moveTo(52.8f, 15.3f + by); p.quadTo(55f, 14.4f, 57.5f, 15f)
+        stroke.color = HAIR; stroke.strokeWidth = 1.05f; c.drawPath(p, stroke)
+        c.seg(55.3f, 25.7f, 56.7f, 25.4f, LIPS, 0.65f)
+        p.reset(); p.moveTo(57.2f, 22.6f); p.quadTo(57.9f, 23.2f, 58.4f, 22.4f)
+        stroke.color = NOSTRIL; stroke.strokeWidth = 0.5f; c.drawPath(p, stroke)
     }
 
-    /** Fake text lines that grow while he types; the last four lines are shown. */
-    private fun drawText(c: Canvas, t: Long) {
-        val lineW = 31f
-        val full = floor(progress).toInt()
-        val first = max(0, full - 3)
-        var y = 74.6f
-        var caretX = 34f; var caretY = y
-        for (li in first..full) {
-            val filled = if (li < full) lineW else (progress - full) * lineW
-            var x = 0f; var k = 0
-            fill.color = LINE_COLORS[li % LINE_COLORS.size]
-            while (x < filled) {
-                val w = (((li * 7 + k * 13) % 6) + 3).toFloat()
-                val dw = min(w, filled - x)
-                r.set(34f + x, y, 34f + x + dw, y + 2.4f)
-                c.drawRoundRect(r, 1.2f, 1.2f, fill)
-                x += w + 1.6f; k++
-            }
-            caretX = 34f + min(filled, lineW) + 0.9f; caretY = y
-            y += 4.4f
-        }
-        if (typeAmt > 0.2f || (t - start) % 1000 < 560) {
-            r.set(caretX, caretY - 0.6f, caretX + 1.1f, caretY + 3f)
-            fill.color = 0xFFFFFFFF.toInt(); c.drawRect(r, fill)
-        }
-    }
-
-    private fun drawSparkle(c: Canvas, x: Float, y: Float, s: Float) {
-        p.reset()
-        p.moveTo(x, y - s); p.quadTo(x, y, x + s, y); p.quadTo(x, y, x, y + s); p.quadTo(x, y, x - s, y); p.quadTo(x, y, x, y - s)
-        fill.color = CAP_LOGO; c.drawPath(p, fill)
-    }
-
-    private fun drawNote(c: Canvas, sec: Float, offset: Float, fromX: Float, fromY: Float, color: Int) {
-        val u = ((sec + offset) % 2.3f) / 2.3f
-        val a = sin(u * PI).toFloat() * vibeAmt
-        if (a <= 0.02f) return
-        val x = fromX + 4f + u * 14f + sin(u * 2 * PI * 1.5).toFloat() * 2.4f
-        val y = fromY - 6f - u * 30f
-        val col = color.withAlpha(a)
-        c.save()
-        c.rotate(-18f, x, y)
-        r.set(x - 2.4f, y - 1.7f, x + 2.4f, y + 1.7f)
-        fill.color = col; c.drawOval(r, fill)
-        c.restore()
-        stroke.color = col; stroke.strokeWidth = 1.2f
-        c.drawLine(x + 2.1f, y - 0.6f, x + 2.1f, y - 8f, stroke)
-        p.reset(); p.moveTo(x + 2.1f, y - 8f); p.quadTo(x + 5.6f, y - 6.4f, x + 4.4f, y - 3.6f)
-        c.drawPath(p, stroke)
-    }
-
-    /** Smooth frames only while something moves; slow ticks for the caret; nothing at rest. */
-    private fun scheduleNext(t: Long, anim: Boolean, hp: Float) {
+    /** Smooth frames only while something moves; slow ticks for blinking; nothing at rest. */
+    private fun scheduleNext(t: Long, anim: Boolean, q: Float) {
         removeCallbacks(tick)
         if (!anim || !isShown) return
-        val transition = t - hpStart < HP_MS + 50
+        val moving = q != qTo
         val typingSoon = mode == Mode.LISTENING && (speaking || t - lastNudge < NUDGE_MS)
         when {
-            transition || typeAmt > 0.01f || typingSoon || mode == Mode.THINKING -> postInvalidateOnAnimation()
+            moving || typeAmt > 0.01f || typingSoon || mode == Mode.THINKING -> postInvalidateOnAnimation()
             vibeAmt > 0f -> postOnAnimationDelayed(tick, 33)
-            mode == Mode.LISTENING -> postOnAnimationDelayed(tick, 250) // caret blink + eye blink
+            mode == Mode.LISTENING -> postOnAnimationDelayed(tick, 120) // blinks
             else -> Unit // resting: still frame until wake()
         }
     }
 
+    // ------------------------------------------------------------------ helpers
+
+    private fun ik(sx: Float, sy: Float, hx: Float, hy: Float, a: Float, b: Float): Pair<Float, Float> {
+        val dx = hx - sx; val dy = hy - sy
+        val len = hypot(dx, dy).coerceAtLeast(0.001f)
+        val d = min(len, a + b - 0.01f)
+        val ux = dx / len; val uy = dy / len
+        val al = acos(((a * a + d * d - b * b) / (2 * a * d)).coerceIn(-1f, 1f))
+        val c = cos(al); val s = sin(al)
+        return (sx + a * (ux * c - uy * s)) to (sy + a * (ux * s + uy * c))
+    }
+
+    private fun smooth(e0: Float, e1: Float, v: Float): Float {
+        val x = ((v - e0) / (e1 - e0)).coerceIn(0f, 1f)
+        return x * x * (3 - 2 * x)
+    }
+
     private fun lerp(a: Float, b: Float, u: Float) = a + (b - a) * u
-    private fun Int.withAlpha(a: Float): Int = ((a.coerceIn(0f, 1f) * 255).toInt() shl 24) or (this and 0xFFFFFF)
+    private fun alpha(a: Float, rgb: Int) = ((a.coerceIn(0f, 1f) * 255).toInt() shl 24) or rgb
+    private fun light(a: Float) = alpha(a, 0xD7F2FF)
+    private fun light2(a: Float) = alpha(a, 0xAFE1FF)
+    private fun rimLight(a: Float) = alpha(a, 0xE1F6FF)
+
+    /** Minimal SVG path reader (absolute M, L, C, Q, Z), so shapes can be written as path strings. */
+    private fun svg(d: String): Path {
+        val path = Path()
+        val tok = Regex("[MLCQZ]|-?\\d*\\.?\\d+").findAll(d).map { it.value }.toList()
+        var i = 0; var cmd = 'M'
+        fun n() = tok[i++].toFloat()
+        while (i < tok.size) {
+            val tkn = tok[i]
+            if (tkn[0].isLetter()) { cmd = tkn[0]; i++; if (cmd == 'Z') { path.close(); continue } }
+            when (cmd) {
+                'M' -> { path.moveTo(n(), n()); cmd = 'L' }
+                'L' -> path.lineTo(n(), n())
+                'C' -> path.cubicTo(n(), n(), n(), n(), n(), n())
+                'Q' -> path.quadTo(n(), n(), n(), n())
+                else -> i++
+            }
+        }
+        return path
+    }
 
     private companion object {
-        const val VW = 100f
-        const val VH = 138f
-        const val OUTLINE = 2.1f
-        const val HP_MS = 650L
+        const val VW = 70f
+        const val VH = 150f
+        const val LEAN = -8f         // degrees: top leans back against the edge
+        const val SHIFT = -19f       // moves his back flush with the edge
+        const val OPEN_MS = 1400L
+        const val CLOSE_MS = 1100L
         const val NUDGE_MS = 700L
         const val VIBE_MS = 30_000L
         const val BEAT_S = 0.62f
 
-        val INK = 0xFF2A1F3D.toInt()
-        val SKIN = 0xFFF1B88B.toInt()
-        val SKIN_SHADE = 0xFFDE9C6C.toInt()
-        val BLUSH = 0x88FF7FA3.toInt()
-        val MOUTH = 0xFFB4234A.toInt()
-        val HAIR = 0xFF3B2618.toInt()
-        val CAP = 0xFFFF4D6D.toInt()
-        val CAP_DARK = 0xFFD92A4E.toInt()
-        val CAP_LOGO = 0xFFFFD23F.toInt()
-        val JACKET = 0xFFFFB703.toInt()
-        val JACKET_DARK = 0xFFF08C00.toInt()
-        val SLEEVE = 0xFF7C4DFF.toInt()
-        val TRIM = 0xFF4CE0B3.toInt()
-        val JEANS = 0xFF3B5BDB.toInt()
-        val JEANS_DARK = 0xFF2A44B0.toInt()
-        val SHOE = 0xFFFFFFFF.toInt()
-        val SOLE = 0xFFFF5CA8.toInt()
-        val HP_BAND = 0xFF3A2E5C.toInt()
-        val HP_CUP = 0xFF22C3FF.toInt()
-        val HP_CUP_IN = 0xFF0E8FD0.toInt()
-        val LAPTOP = 0xFFE6EAF4.toInt()
-        val LAPTOP_DARK = 0xFFC3CADC.toInt()
-        val SCREEN = 0xFF1C1F3A.toInt()
-        val REC = 0xFFFF3B3B.toInt()
-        val NOTE_A = 0xFFFF5CA8.toInt()
-        val NOTE_B = 0xFF7C4DFF.toInt()
-        val BAR_COLORS = intArrayOf(0xFFFF5CA8.toInt(), 0xFFFF8A3D.toInt(), 0xFFFFD23F.toInt(), 0xFFB6F25A.toInt(),
-            0xFF4CE0B3.toInt(), 0xFF22C3FF.toInt(), 0xFF9B7BFF.toInt())
-        val LINE_COLORS = intArrayOf(0xFF4CE0B3.toInt(), 0xFFE9ECFF.toInt(), 0xFFFFD23F.toInt(), 0xFFFF8FC0.toInt())
+        val RIM = 0x8C0A0C10.toInt()
+        val SKIN = 0xFFD7A07C.toInt()
+        val SKIN_D = 0xFFB47A58.toInt()
+        val SKIN_L = 0xFFE8BC9A.toInt()
+        val HAIR = 0xFF231813.toInt()
+        val HAIR_L = 0xFF4A3428.toInt()
+        val EYE_WHITE = 0xFFF3EEE8.toInt()
+        val IRIS = 0xFF2B1E17.toInt()
+        val LIPS = 0xCC783C2D.toInt()
+        val NOSTRIL = 0x99784632.toInt()
+        val JKT1 = 0xFF1E5A1E.toInt()
+        val JKT2 = 0xFF2E9B34.toInt()
+        val JKT3 = 0xFF4CC043.toInt()
+        val JKT_D = 0xFF174A17.toInt()
+        val BLACK = 0xFF18191C.toInt()
+        val WHITE = 0xFFEDEFF2.toInt()
+        val DEN1 = 0xFF1E2840.toInt()
+        val DEN2 = 0xFF2E3D5E.toInt()
+        val DEN3 = 0xFF3B4D74.toInt()
+        val SHOE = 0xFFF1F2F4.toInt()
+        val SHOE_D = 0xFFC9CCD2.toInt()
+        val SOLE = 0xFF2B2D31.toInt()
+        val ACCENT = 0xFF2E9B34.toInt()
+        val LAP1 = 0xFFA9AEB7.toInt()
+        val LAP2 = 0xFF5C626C.toInt()
+        val LAP_EDGE = 0xFF2D3138.toInt()
+        val HP = 0xFF1B1C20.toInt()
+        val HP_L = 0xFF3A3C44.toInt()
     }
 }

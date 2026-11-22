@@ -74,9 +74,11 @@ with each release, and keep `website/privacy.html` the same as `docs/privacy-pol
   `RewriteHistory`: last 50 pairs, phone-only, behind `Prefs.keepHistory`; shown in "Recent dictations".
 - `MicPipe`: owns the AudioRecord; reports pipe closed by recognizer, mic silenced by another app, mic failure;
   reopens a dead AudioRecord.
-- `BoyView`: the floating bubble's character (boy with cap, headphones and laptop on a transparent 72x100dp window),
-  drawn with Canvas paths. Modes: VIBING (headphones on, music; goes still after 30 s to save battery), LISTENING
-  (headphones down, types while `onVoice(true)` or after `nudge()`), THINKING. Mirrors to face inward on the right edge.
+- `BoyView`: the floating bubble's character on a transparent 52x112dp window: a guy in a green jacket, side view,
+  leaning back on the screen edge with legs crossed (Canvas paths in a 70x150 box, mirrored on the right edge).
+  VIBING: headphones on, laptop closed at his side (goes still after 30 s). LISTENING: headphones to the neck, raises
+  and opens the laptop (only the lid's back is visible), screen light on his face, types on `onVoice(true)`/`nudge()`.
+  THINKING: same pose, light pulses. Prototype for visual checks: `.ai-workspace/scratch/lean-boy.html`.
 - `BubbleService`: microphone-type foreground service; overlay bubble, notification, optional MediaSession for
   the island/media controls (hardware media buttons are ignored so they can't start the mic).
 - `MicTileService`: Quick Settings tile that toggles the running service.
