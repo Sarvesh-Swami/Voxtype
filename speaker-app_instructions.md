@@ -2,7 +2,7 @@
 
 Android dictation app ("Speaker", package `app.speaker.dictate`). User-facing overview: `README.md`.
 Play Store release steps and policy notes: `docs/play-store-release-checklist.md`.
-Public website (static HTML, full-width professional software-site look, classic and restrained, hosted on a Namecheap subdomain): `website/`. Hosting and
+Public website (static HTML, styled on 2006-2009 software sites like Firefox 3 and Thunderbird 2, hosted on a Namecheap subdomain): `website/`. Hosting and
 release steps: `website/website-hosting-README.md`. It offers the **play** flavor APK (upload-key signed) as
 `website/downloads/Speaker-<version>.apk` (git-ignored). Keep the version, size, date and SHA-256 on its pages in step
 with each release, and keep `website/privacy.html` the same as `docs/privacy-policy.html`.

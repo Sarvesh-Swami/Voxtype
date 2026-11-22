@@ -10,38 +10,35 @@
 </head>
 <body>
 
-<div class="utility"><div class="wrap">
-  <span>Speaker 1.0.0 for Android is available now.</span>
-  <span class="hide-sm"><a href="guide.html">Support</a> &nbsp;&middot;&nbsp; <a href="mailto:[CONTACT EMAIL]">Contact</a></span>
-</div></div>
-
-<header class="site-header"><div class="wrap">
-  <a class="logo" href="index.html"><img src="assets/logo.svg" alt="" width="38" height="38"><span>Speaker</span></a>
-  <ul class="nav">
-    <li><a href="index.html">Overview</a></li>
-    <li><a href="index.html#features">Features</a></li>
-    <li><a href="guide.html">Setup Guide</a></li>
+<div class="top"><div class="wrap"><div class="bar">
+  <a class="wordmark" href="index.html"><img src="assets/logo.svg" alt="" width="30" height="30">speaker</a>
+  <ul class="tabs">
+    <li><a href="index.html">Product</a></li>
+    <li><a href="download.html">Download</a></li>
+    <li><a href="guide.html">Support</a></li>
     <li><a href="faq.html">FAQ</a></li>
     <li><a href="privacy.html" aria-current="page">Privacy</a></li>
   </ul>
-  <a class="btn btn-sm" href="download.html">Download</a>
-</div></header>
+  <div class="bar-dl"><a href="download.html">Free Download</a></div>
+</div></div></div>
 
-<section class="page-head"><div class="wrap">
-  <div class="crumbs"><a href="index.html">Speaker</a> &rsaquo; Privacy Policy</div>
+<div class="sky short"><div class="wrap"><div class="hero">
+  <div class="crumb"><a href="index.html">Home</a> &raquo; Privacy Policy</div>
   <h1>Privacy Policy</h1>
-  <p>Effective date: [DATE]</p>
-</div></section>
+  <p class="intro">Effective date: [DATE]</p>
+</div></div></div>
 
-<div class="wrap"><article class="legal">
-  <p class="muted">App: Speaker (Android, package <span class="code">app.speaker.dictate</span>). Developer: [DEVELOPER NAME]. Contact: <a href="mailto:[CONTACT EMAIL]">[CONTACT EMAIL]</a>.</p>
+<div class="wrap">
+  <div class="cols">
+    <div class="main prose">
+  <p style="font:12px var(--ui);color:#777">App: Speaker (Android, package <span class="code">app.speaker.dictate</span>). Developer: [DEVELOPER NAME]. Contact: <a href="mailto:[CONTACT EMAIL]">[CONTACT EMAIL]</a>.</p>
 
-  <h2 style="margin-top:20px">Summary</h2>
+  <h2>Summary</h2>
   <p>Speaker is a voice-typing app. It has no account, no servers, no ads and no analytics. The developer does not receive, collect or store any of your data. What you say is processed either by your phone's own speech service or by an AI provider that <em>you</em> choose and connect with <em>your own</em> API key.</p>
 
   <h2>What the app handles and where it goes</h2>
-  <div class="scroll-x">
-  <table class="spec-table">
+  
+  <table class="table">
     <tr><th>Data</th><th>Why</th><th>Where it goes</th></tr>
     <tr><td>Microphone audio</td><td>To turn your speech into text, only while you are dictating.</td><td><strong>Built-in engine:</strong> your phone's speech recognition service (provided by Android / Google on most phones), on the device where supported. <strong>API engine (optional):</strong> each spoken phrase is sent over HTTPS directly from your phone to the provider you selected (OpenAI, Groq, Google Gemini, Deepgram, or a custom OpenAI-compatible URL you enter). Audio is not stored by the app; temporary phrase files are deleted after sending.</td></tr>
     <tr><td>Transcribed text</td><td>To type it into the text field you are using.</td><td>Stays on your phone. If you turn on <strong>AI rewrite</strong>, your words are first collected on your phone, where you can edit them; when you tap Send, that text and your prompt are sent to the AI provider you selected (OpenAI, Anthropic, Google Gemini, Groq, or your custom URL).</td></tr>
@@ -49,7 +46,6 @@
     <tr><td>API keys and settings</td><td>To call the providers you chose.</td><td>Stored only in the app's private storage on your phone. Excluded from cloud backup and device-to-device transfer. A key is only sent to the provider it belongs to.</td></tr>
     <tr><td>Diagnostic log</td><td>Troubleshooting.</td><td>Kept in memory on your phone. It is only shared if you tap Copy or Share logs. It does not contain your dictated words or API keys.</td></tr>
   </table>
-  </div>
   <p>Providers process the data you send them under their own terms and privacy policies. Please review the policy of any provider you connect.</p>
 
   <h2>Permissions</h2>
@@ -78,34 +74,37 @@
 
   <h2>Contact</h2>
   <p><a href="mailto:[CONTACT EMAIL]">[CONTACT EMAIL]</a></p>
-</article></div>
+</div>
 
-<footer class="site-footer">
-  <div class="wrap cols">
-    <div class="about">
-      <a class="logo" href="index.html"><img src="assets/logo.svg" alt="" width="38" height="38"><span>Speaker</span></a>
-      <p>Voice typing for every Android app. Speak naturally and your words appear wherever you're writing.</p>
-    </div>
-    <div><h4>Product</h4><ul>
-      <li><a href="index.html#features">Features</a></li>
-      <li><a href="download.html">Download</a></li>
-      <li><a href="download.html#releases">Release notes</a></li>
-    </ul></div>
-    <div><h4>Support</h4><ul>
-      <li><a href="guide.html">Setup guide</a></li>
-      <li><a href="faq.html">FAQ</a></li>
-      <li><a href="mailto:[CONTACT EMAIL]">Contact us</a></li>
-    </ul></div>
-    <div><h4>Company</h4><ul>
-      <li><a href="privacy.html">Privacy policy</a></li>
-      <li><a href="mailto:[CONTACT EMAIL]">[CONTACT EMAIL]</a></li>
-    </ul></div>
+    <aside class="side">
+      <div class="secnav">
+        <h4>Speaker <span>/</span> Privacy</h4>
+        <ul>
+          <li><a href="privacy.html" class="on">Privacy Policy</a></li>
+          <li><a href="faq.html#costs">Privacy FAQ</a></li>
+          <li><a href="mailto:[CONTACT EMAIL]">Contact Us</a></li>
+        </ul>
+      </div>
+      <div class="panel blue">
+        <h4>In Short</h4>
+        <p>&#10003; No account<br>&#10003; No ads or analytics<br>&#10003; No servers of ours<br>&#10003; Keys stay on your phone<br>&#10003; You choose every provider</p>
+      </div>
+    </aside>
   </div>
-  <div class="base"><div class="wrap">
-    <span>&copy; 2026 [DEVELOPER NAME]. All rights reserved.</span>
-    <span>Android is a trademark of Google LLC. Other names are trademarks of their owners.</span>
-  </div></div>
-</footer>
+</div>
+
+<div class="foot">
+  <div class="wrap">
+    <div class="foot-cols">
+      <div><h5>Speaker</h5><ul><li><a href="index.html#features">Features</a></li><li><a href="index.html#ai">AI Rewrite</a></li><li><a href="index.html#engines">Speech Engines</a></li></ul></div>
+      <div><h5>Download</h5><ul><li><a href="download.html">Get Speaker</a></li><li><a href="download.html#releases">Release Notes</a></li><li><a href="download.html#requirements">Requirements</a></li></ul></div>
+      <div><h5>Support</h5><ul><li><a href="guide.html">Setup Guide</a></li><li><a href="faq.html">FAQ</a></li><li><a href="mailto:[CONTACT EMAIL]">Contact</a></li></ul></div>
+      <div><h5>About</h5><ul><li><a href="privacy.html">Privacy Policy</a></li><li><a href="mailto:[CONTACT EMAIL]">[CONTACT EMAIL]</a></li></ul></div>
+      <div class="ver"><b>Current version</b>Speaker 1.0.0 for Android</div>
+    </div>
+    <div class="foot-base">Copyright &copy; 2026 [DEVELOPER NAME]. All rights reserved. &nbsp; <a href="privacy.html">Privacy Policy</a> Android is a trademark of Google LLC.</div>
+  </div>
+</div>
 
 </body>
 </html>
