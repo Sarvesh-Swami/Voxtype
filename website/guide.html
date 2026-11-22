@@ -10,136 +10,119 @@
 </head>
 <body>
 
-<div class="top"><div class="wrap"><div class="bar">
-  <a class="wordmark" href="index.html"><img src="assets/logo.svg" alt="" width="30" height="30">speaker</a>
-  <ul class="tabs">
-    <li><a href="index.html">Product</a></li>
-    <li><a href="download.html">Download</a></li>
-    <li><a href="guide.html" aria-current="page">Support</a></li>
-    <li><a href="faq.html">FAQ</a></li>
-    <li><a href="privacy.html">Privacy</a></li>
-  </ul>
-  <div class="bar-dl"><a href="download.html">Free Download</a></div>
-</div></div></div>
+<nav class="desk" aria-label="Shortcuts">
+  <a href="downloads/Speaker-1.0.0.apk" download><img src="assets/logo.svg" alt=""><span>Speaker-1.0.0.apk</span></a>
+  <a href="guide.html"><img src="assets/ic-help.svg" alt=""><span>Setup Guide</span></a>
+  <a href="faq.html"><img src="assets/ic-folder.svg" alt=""><span>FAQ</span></a>
+  <a href="privacy.html"><img src="assets/ic-shield.svg" alt=""><span>Privacy Policy</span></a>
+  <a href="mailto:[CONTACT EMAIL]"><img src="assets/ic-mail.svg" alt=""><span>Contact</span></a>
+</nav>
 
-<div class="sky short"><div class="wrap"><div class="hero">
-  <div class="crumb"><a href="index.html">Home</a> &raquo; <a href="guide.html">Support</a> &raquo; Setup Guide</div>
-  <h1>Setup Guide</h1>
-  <p class="intro">Everything you need to get Speaker running, from the first launch to AI rewrite.</p>
-</div></div></div>
-
-<div class="wrap">
-  <div class="cols">
-    <div class="main prose">
-      <h2 id="permissions">Permissions</h2>
-      <p>When you first open Speaker, the <b>Finish setup</b> card lists four steps. Tap each one in turn.</p>
-      <table class="table">
-        <tr><th style="width:22%">Step</th><th>What to do</th><th style="width:28%">Why</th></tr>
-        <tr><td>Microphone</td><td>Tap <i>Allow</i> and choose <i>While using the app</i>.</td><td>To hear you while you dictate.</td></tr>
-        <tr><td>Display over apps</td><td>Tap <i>Allow</i>, find Speaker in the list and switch it on.</td><td>Shows the floating bubble.</td></tr>
-        <tr><td>Auto-typing</td><td>Tap <i>Enable</i>, read the explanation, tap <i>Agree &amp; continue</i>, then open <i>Speaker auto-type</i> and switch it on.</td><td>Types your words into the text box you're using.</td></tr>
-        <tr><td>Run in background</td><td>Tap <i>Allow</i> and choose <i>Unrestricted</i> or <i>Don't optimise</i>.</td><td>Stops the phone closing Speaker.</td></tr>
-      </table>
-      <p>Auto-typing is optional. Without it, Speaker copies what you said to the clipboard so you can paste it yourself. In Accessibility settings, <i>Speaker auto-type</i> may be listed under <i>Installed apps</i> or <i>Downloaded apps</i>.</p>
-
-      <h2 id="restricted">Restricted Settings</h2>
-      <p>Android 13 and later protect Accessibility for apps installed from outside Google Play. If the <i>Speaker auto-type</i> switch is greyed out, or you see a <i>Restricted setting</i> message:</p>
-      <ol class="num">
-        <li>Try to switch it on once so Android shows the message, then close it.</li>
-        <li>Open <b>Settings &rarr; Apps &rarr; Speaker</b>.</li>
-        <li>Tap the <b>&#8942;</b> menu in the top corner and choose <b>Allow restricted settings</b>. Confirm with your PIN or fingerprint.</li>
-        <li>Return to <b>Settings &rarr; Accessibility &rarr; Speaker auto-type</b> and switch it on.</li>
-      </ol>
-
-      <h2 id="battery">Background and Battery</h2>
-      <p>Some phones close apps in the background to save battery. When that happens to Speaker, the bubble disappears and Android also switches auto-typing off.</p>
-      <div class="note"><b>Realme, Oppo, OnePlus, Xiaomi, Vivo and Samsung phones:</b> as well as setting battery use to <i>Unrestricted</i>, turn on <i>Auto launch</i> or <i>Autostart</i> for Speaker if your phone has it, and lock Speaker in the recent-apps screen (open Recents, long-press Speaker or pull it down, and choose <i>Lock</i>).</div>
-
-      <h2 id="engine">Speech Engines</h2>
-      <p>In the <b>Speech engine</b> section, choose who turns your voice into text.</p>
-      <table class="table">
-        <tr><th style="width:26%">Engine</th><th style="width:18%">Key</th><th>Notes</th></tr>
-        <tr><td>Android built-in</td><td>Not needed</td><td>Free. Uses your phone's own speech recognition.</td></tr>
-        <tr><td>Groq</td><td>Required</td><td>Fast Whisper models. Free tier available.</td></tr>
-        <tr><td>OpenAI</td><td>Required</td><td>Accurate transcription models.</td></tr>
-        <tr><td>Google Gemini</td><td>Required</td><td>Gemini models.</td></tr>
-        <tr><td>Deepgram</td><td>Required</td><td>Nova models.</td></tr>
-        <tr><td>Custom</td><td>Required</td><td>Any OpenAI-compatible server. Enter its address.</td></tr>
-      </table>
-      <p>For an online engine, create an API key on the provider's website and paste it under <b>API keys</b>. Tap <b>Refresh</b> beside <i>Model</i> to load the models your key can use. Leave <i>Language</i> blank to detect it automatically, or enter a code such as <span class="code">en</span> or <span class="code">hi</span>. Providers charge for usage under their own terms; Speaker itself is free.</p>
-
-      <h2 id="bubble">The Floating Bubble</h2>
-      <p>Tap <b>Start floating bubble</b> in the app. The bubble appears at the edge of the screen, and a Speaker notification is shown while it runs.</p>
-      <ol class="num">
-        <li>Open any app and tap into a text box.</li>
-        <li><b>Tap the bubble</b> and speak. Each phrase is typed when you pause.</li>
-        <li><b>Tap it again</b> to stop.</li>
-      </ol>
-      <table class="table">
-        <tr><th style="width:26%">Action</th><th>Result</th></tr>
-        <tr><td>Tap</td><td>Start or stop dictation</td></tr>
-        <tr><td>Drag</td><td>Move the bubble</td></tr>
-        <tr><td>Long-press</td><td>Quick menu: switch AI rewrite on or off, or open Speaker</td></tr>
-      </table>
-      <p>You can also use the <b>Dictate</b> button in the notification, or add the <b>Dictate</b> tile to Quick Settings: pull down twice, tap the edit (pencil) icon and drag the tile in.</p>
-
-      <h2 id="ai">AI Rewrite</h2>
-      <p>AI rewrite cleans up what you said, such as punctuation, filler words and grammar, or follows your own instructions. It uses the provider you choose: OpenAI, Anthropic Claude, Google Gemini, Groq or a custom server.</p>
-      <ol class="num">
-        <li>In <b>AI rewrite</b>, switch it on, pick a provider and model, and add that provider's key under <b>API keys</b>. Edit the session prompt to change how text is rewritten.</li>
-        <li>Tap the bubble and speak. Nothing is typed yet: your words collect in a <b>draft card</b> beside the bubble.</li>
-        <li>Tap the text in the card to correct anything with the keyboard.</li>
-        <li>Tap <b>Send</b>, or the bubble. The bubble shows <i>Processing</i>, then the rewritten text is typed into your text box. If no text box is selected, it's copied to the clipboard.</li>
-      </ol>
-      <table class="table">
-        <tr><th style="width:26%">Draft card</th><th>Result</th></tr>
-        <tr><td>&#10005;</td><td>Discard the draft</td></tr>
-        <tr><td>More</td><td>Keep talking and add to the draft</td></tr>
-        <tr><td>Send</td><td>Rewrite the whole draft. If it fails, the draft is kept and the button changes to <i>Retry</i>.</td></tr>
-      </table>
-
-      <h2 id="history">Recent Dictations</h2>
-      <p>With AI rewrite on, switch on <b>Keep recent dictations on this phone</b> to keep your last 50 dictations alongside their AI versions. Open <b>Recent dictations</b> to review or copy either version. They're stored only on your phone, and switching the setting off clears them.</p>
-    </div>
-
-    <aside class="side">
-      <div class="secnav">
-        <h4>Support <span>/</span> Setup Guide</h4>
-        <ul>
-          <li><a href="#permissions">Permissions</a></li>
-          <li><a href="#restricted">Restricted Settings</a></li>
-          <li><a href="#battery">Background and Battery</a></li>
-          <li><a href="#engine">Speech Engines</a></li>
-          <li><a href="#bubble">The Floating Bubble</a></li>
-          <li><a href="#ai">AI Rewrite</a></li>
-          <li><a href="#history">Recent Dictations</a></li>
-          <li><a href="faq.html">Frequently Asked Questions</a></li>
-        </ul>
-      </div>
-      <div class="panel blue">
-        <h4>Quick Checklist</h4>
-        <p>&#10003; Microphone allowed<br>&#10003; Display over apps on<br>&#10003; Speaker auto-type on<br>&#10003; Battery set to Unrestricted<br>&#10003; Engine chosen<br>&#10003; Bubble started</p>
-      </div>
-      <div class="panel peach">
-        <h4>Still Stuck?</h4>
-        <p>Email <a href="mailto:[CONTACT EMAIL]">[CONTACT EMAIL]</a> with your phone model and Android version.</p>
-      </div>
+<div class="window">
+  <div class="titlebar">
+    <img src="assets/logo.svg" alt="">
+    <h1>Speaker - Help and Support</h1>
+    <div class="ctl" aria-hidden="true"><span class="min"></span><span class="max"></span><span class="close"></span></div>
+  </div>
+  <ul class="menubar"><li><a href="index.html">Welcome</a></li><li><a href="download.html">Download</a></li><li><a href="guide.html" aria-current="page">Setup Guide</a></li><li><a href="faq.html">FAQ</a></li><li><a href="privacy.html">Privacy</a></li><li class="brand-mark">Speaker 1.0.0</li></ul>
+  <div class="toolbar">
+    <a class="tb" href="index.html"><img src="assets/logo.svg" alt="">Home</a>
+    <a class="tb" href="download.html"><img src="assets/ic-download.svg" alt="">Download</a>
+    <span class="tb-sep"></span>
+    <a class="tb" href="guide.html"><img src="assets/ic-help.svg" alt="">Help</a>
+    <a class="tb" href="faq.html"><img src="assets/ic-folder.svg" alt="">FAQ</a>
+    <a class="tb" href="privacy.html"><img src="assets/ic-shield.svg" alt="">Privacy</a>
+  </div>
+  <div class="addressbar">Address
+    <div class="address"><img src="assets/logo.svg" alt="">Speaker &gt; Help and Support &gt; Setup Guide</div>
+    <a class="go" href="guide.html"><i></i>Go</a>
+  </div>
+  <div class="client">
+    <aside class="taskpane">
+      <div class="tp special"><div class="tp-h">Pick a Help topic</div><div class="tp-b"><ul><li><a href="#permissions"><img src="assets/ic-key.svg" alt="">Permissions</a></li><li><a href="#restricted"><img src="assets/ic-warn.svg" alt="">Restricted settings</a></li><li><a href="#battery"><img src="assets/ic-gear.svg" alt="">Background and battery</a></li><li><a href="#engine"><img src="assets/ic-gear.svg" alt="">Speech engines</a></li><li><a href="#bubble"><img src="assets/logo.svg" alt="">The floating bubble</a></li><li><a href="#ai"><img src="assets/ic-spark.svg" alt="">AI rewrite</a></li><li><a href="#history"><img src="assets/ic-doc.svg" alt="">Recent dictations</a></li></ul></div></div>
+      <div class="tp"><div class="tp-h">Other Places</div><div class="tp-b"><ul><li><a href="index.html"><img src="assets/logo.svg" alt="">Welcome</a></li><li><a href="download.html"><img src="assets/ic-download.svg" alt="">Download</a></li><li><a href="guide.html"><img src="assets/ic-help.svg" alt="">Setup Guide</a></li><li><a href="faq.html"><img src="assets/ic-folder.svg" alt="">FAQ</a></li><li><a href="privacy.html"><img src="assets/ic-shield.svg" alt="">Privacy Policy</a></li></ul></div></div>
     </aside>
+    <main class="content">
+      <h2 class="big">Speaker Setup Guide</h2>
+      <p class="muted">Everything you need to get Speaker running, from the first launch to AI rewrite.</p>
+
+      <div class="group" id="permissions">Permissions</div>
+      <p>When you first open Speaker, the <b>Finish setup</b> card lists four steps. Tap each one in turn.</p>
+      <table class="details"><tr><th style="width:24%">Step</th><th>What to do</th><th style="width:28%">Why</th></tr><tr><td><b>Microphone</b></td><td>Tap <i>Allow</i> and choose <i>While using the app</i>.</td><td>To hear you while you dictate.</td></tr><tr><td><b>Display over apps</b></td><td>Tap <i>Allow</i>, find Speaker in the list and switch it on.</td><td>Shows the floating bubble.</td></tr><tr><td><b>Auto-typing</b></td><td>Tap <i>Enable</i>, read the explanation, tap <i>Agree &amp; continue</i>, then open <i>Speaker auto-type</i> and switch it on.</td><td>Types your words into the text box.</td></tr><tr><td><b>Run in background</b></td><td>Tap <i>Allow</i> and choose <i>Unrestricted</i> or <i>Don't optimise</i>.</td><td>Stops the phone closing Speaker.</td></tr></table>
+      <p>Auto-typing is optional. Without it, Speaker copies what you said to the clipboard. In Accessibility settings, <i>Speaker auto-type</i> may be listed under <i>Installed apps</i> or <i>Downloaded apps</i>.</p>
+
+      <div class="group" id="restricted">Restricted settings (Android 13 and later)</div>
+      <p>Android protects Accessibility for apps installed from outside Google Play. If the <i>Speaker auto-type</i> switch is greyed out:</p>
+      <ol class="steps">
+        <li>Try to switch it on once so Android shows the message, then close it.</li>
+        <li>Open <b>Settings &gt; Apps &gt; Speaker</b>.</li>
+        <li>Tap the <b>&#8942;</b> menu and choose <b>Allow restricted settings</b>. Confirm with your PIN or fingerprint.</li>
+        <li>Go back to <b>Settings &gt; Accessibility &gt; Speaker auto-type</b> and switch it on.</li>
+      </ol>
+
+      <div class="group" id="battery">Background and battery</div>
+      <p>Some phones close apps in the background to save battery. When that happens, the bubble disappears and Android also switches auto-typing off.</p>
+      <div class="balloon"><b class="head"><img src="assets/ic-warn.svg" alt="">Realme, Oppo, OnePlus, Xiaomi, Vivo and Samsung</b>Set battery use to <i>Unrestricted</i>, turn on <i>Auto launch</i> or <i>Autostart</i> for Speaker if your phone has it, and lock Speaker in the recent-apps screen.</div>
+
+      <div class="group" id="engine">Speech engines</div>
+      <table class="details"><tr><th style="width:26%">Engine</th><th style="width:16%">Key</th><th>Notes</th></tr><tr><td><b>Android built-in</b></td><td>Not needed</td><td>Free. Uses your phone's own speech recognition.</td></tr><tr><td>Groq</td><td>Required</td><td>Fast Whisper models. Free tier available.</td></tr><tr><td>OpenAI</td><td>Required</td><td>Accurate transcription models.</td></tr><tr><td>Google Gemini</td><td>Required</td><td>Gemini models.</td></tr><tr><td>Deepgram</td><td>Required</td><td>Nova models.</td></tr><tr><td>Custom</td><td>Required</td><td>Any OpenAI-compatible server. Enter its address.</td></tr></table>
+      <p>For an online engine, create an API key on the provider's website and paste it under <b>API keys</b>. Tap <b>Refresh</b> beside <i>Model</i> to load the models your key can use. Leave <i>Language</i> blank to detect it automatically. Providers charge for usage under their own terms; Speaker itself is free.</p>
+
+      <div class="group" id="bubble">The floating bubble</div>
+      <p>Tap <b>Start floating bubble</b>. The bubble appears at the edge of the screen and a Speaker notification shows while it runs.</p>
+      <table class="details"><tr><th style="width:26%">Action</th><th>Result</th></tr><tr><td>Tap</td><td>Start or stop dictation</td></tr><tr><td>Drag</td><td>Move the bubble</td></tr><tr><td>Long-press</td><td>Quick menu: switch AI rewrite on or off, or open Speaker</td></tr></table>
+      <p>You can also use the <b>Dictate</b> button in the notification, or add the <b>Dictate</b> tile to Quick Settings.</p>
+
+      <div class="group" id="ai">AI rewrite</div>
+      <ol class="steps">
+        <li>In <b>AI rewrite</b>, switch it on, pick a provider (OpenAI, Anthropic Claude, Google Gemini, Groq or custom) and model, and add the key under <b>API keys</b>.</li>
+        <li>Tap the bubble and speak. Your words collect in a <b>draft card</b> beside the bubble.</li>
+        <li>Tap the text in the card to fix anything with the keyboard.</li>
+        <li>Tap <b>Send</b>, or the bubble. The bubble shows <i>Processing</i>, then the rewritten text is typed in, or copied to the clipboard if no text box is selected.</li>
+      </ol>
+      <table class="details"><tr><th style="width:26%">Draft card</th><th>Result</th></tr><tr><td>&#10005;</td><td>Discard the draft</td></tr><tr><td>More</td><td>Keep talking and add to the draft</td></tr><tr><td>Send</td><td>Rewrite the whole draft. If it fails, the draft is kept and the button changes to <i>Retry</i>.</td></tr></table>
+
+      <div class="group" id="history">Recent dictations</div>
+      <p>With AI rewrite on, switch on <b>Keep recent dictations on this phone</b> to keep your last 50 dictations with their AI versions, ready to copy. They're stored only on your phone, and switching the setting off clears them.</p>
+
+    </main>
   </div>
+  <div class="statusbar"><span>Done</span><span>&copy; 2026 [DEVELOPER NAME]</span><span><img src="assets/ic-shield.svg" alt="">No tracking</span></div>
 </div>
 
-<div class="foot">
-  <div class="wrap">
-    <div class="foot-cols">
-      <div><h5>Speaker</h5><ul><li><a href="index.html#features">Features</a></li><li><a href="index.html#ai">AI Rewrite</a></li><li><a href="index.html#engines">Speech Engines</a></li></ul></div>
-      <div><h5>Download</h5><ul><li><a href="download.html">Get Speaker</a></li><li><a href="download.html#releases">Release Notes</a></li><li><a href="download.html#requirements">Requirements</a></li></ul></div>
-      <div><h5>Support</h5><ul><li><a href="guide.html">Setup Guide</a></li><li><a href="faq.html">FAQ</a></li><li><a href="mailto:[CONTACT EMAIL]">Contact</a></li></ul></div>
-      <div><h5>About</h5><ul><li><a href="privacy.html">Privacy Policy</a></li><li><a href="mailto:[CONTACT EMAIL]">[CONTACT EMAIL]</a></li></ul></div>
-      <div class="ver"><b>Current version</b>Speaker 1.0.0 for Android</div>
+<div class="taskbar">
+  <details class="start">
+    <summary><img src="assets/logo.svg" alt="">start</summary>
+    <div class="startmenu">
+      <div class="sm-head"><img src="assets/logo.svg" alt="">Speaker</div>
+      <div class="sm-cols">
+        <div class="sm-left">
+          <a href="downloads/Speaker-1.0.0.apk" download><img src="assets/ic-download.svg" alt=""><span><b>Download Speaker</b><small>Version 1.0.0 &middot; 137 KB</small></span></a>
+          <a href="guide.html"><img src="assets/ic-help.svg" alt=""><span><b>Setup Guide</b><small>Get started step by step</small></span></a>
+          <a href="faq.html"><img src="assets/ic-folder.svg" alt=""><span><b>FAQ</b><small>Answers to common questions</small></span></a>
+          <a href="index.html#features"><img src="assets/ic-spark.svg" alt=""><span><b>Features</b><small>What Speaker can do</small></span></a>
+        </div>
+        <div class="sm-right">
+          <a href="index.html"><img src="assets/logo.svg" alt="">Welcome</a>
+          <a href="download.html#releases"><img src="assets/ic-doc.svg" alt="">Release Notes</a>
+          <a href="download.html#requirements"><img src="assets/ic-phone.svg" alt="">Requirements</a>
+          <a href="privacy.html"><img src="assets/ic-shield.svg" alt="">Privacy Policy</a>
+          <a href="mailto:[CONTACT EMAIL]"><img src="assets/ic-mail.svg" alt="">Contact</a>
+        </div>
+      </div>
+      <div class="sm-foot">Speaker for Android</div>
     </div>
-    <div class="foot-base">Copyright &copy; 2026 [DEVELOPER NAME]. All rights reserved. &nbsp; <a href="privacy.html">Privacy Policy</a> Android is a trademark of Google LLC.</div>
-  </div>
+  </details>
+  <div class="tasks"><a class="task" href="index.html"><img src="assets/logo.svg" alt="">Welcome</a><a class="task" href="download.html"><img src="assets/ic-download.svg" alt="">Download</a><a class="task on" href="guide.html"><img src="assets/ic-help.svg" alt="">Setup Guide</a><a class="task" href="faq.html"><img src="assets/ic-doc.svg" alt="">FAQ</a><a class="task" href="privacy.html"><img src="assets/ic-shield.svg" alt="">Privacy</a></div>
+  <div class="tray"><img src="assets/ic-shield.svg" alt=""><img src="assets/logo.svg" alt=""><span id="clock">12:00 PM</span></div>
 </div>
-
+<script>
+(function () {
+  var c = document.getElementById("clock");
+  function t() { var d = new Date(), h = d.getHours(), m = d.getMinutes();
+    c.textContent = ((h % 12) || 12) + ":" + (m < 10 ? "0" : "") + m + (h < 12 ? " AM" : " PM"); }
+  t(); setInterval(t, 15000);
+})();
+</script>
 </body>
 </html>

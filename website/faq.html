@@ -10,108 +10,98 @@
 </head>
 <body>
 
-<div class="top"><div class="wrap"><div class="bar">
-  <a class="wordmark" href="index.html"><img src="assets/logo.svg" alt="" width="30" height="30">speaker</a>
-  <ul class="tabs">
-    <li><a href="index.html">Product</a></li>
-    <li><a href="download.html">Download</a></li>
-    <li><a href="guide.html">Support</a></li>
-    <li><a href="faq.html" aria-current="page">FAQ</a></li>
-    <li><a href="privacy.html">Privacy</a></li>
-  </ul>
-  <div class="bar-dl"><a href="download.html">Free Download</a></div>
-</div></div></div>
+<nav class="desk" aria-label="Shortcuts">
+  <a href="downloads/Speaker-1.0.0.apk" download><img src="assets/logo.svg" alt=""><span>Speaker-1.0.0.apk</span></a>
+  <a href="guide.html"><img src="assets/ic-help.svg" alt=""><span>Setup Guide</span></a>
+  <a href="faq.html"><img src="assets/ic-folder.svg" alt=""><span>FAQ</span></a>
+  <a href="privacy.html"><img src="assets/ic-shield.svg" alt=""><span>Privacy Policy</span></a>
+  <a href="mailto:[CONTACT EMAIL]"><img src="assets/ic-mail.svg" alt=""><span>Contact</span></a>
+</nav>
 
-<div class="sky short"><div class="wrap"><div class="hero">
-  <div class="crumb"><a href="index.html">Home</a> &raquo; <a href="guide.html">Support</a> &raquo; FAQ</div>
-  <h1>Frequently Asked Questions</h1>
-  <p class="intro">Quick answers about installing, using and paying for Speaker.</p>
-</div></div></div>
-
-<div class="wrap">
-  <div class="cols">
-    <div class="main prose">
-      <h2 id="installing">Installing</h2>
-      <dl class="faq">
-        <dt>Why isn't Speaker on Google Play?</dt>
-        <dd>It's on its way. Until then you can install it from this website, and this page will link to the Play listing once it's live.</dd>
-        <dt>Android warns me about installing the file. Is that expected?</dt>
-        <dd>Yes. Android shows that warning for any app installed from outside Google Play. Speaker contains no ads or trackers and only asks for the permissions it needs. To check the file, compare it with the values on the <a href="download.html#verify">download page</a>.</dd>
-        <dt>How do I update?</dt>
-        <dd>Download the newer version from the <a href="download.html">download page</a> and install it over the one you have. Don't uninstall first, so your settings and keys are kept.</dd>
-        <dt>Can I switch to the Google Play version later?</dt>
-        <dd>Yes. If Android won't install the Play version over this one, uninstall Speaker and then install it from Play. You'll need to enter your keys and settings again.</dd>
-      </dl>
-
-      <h2 id="using" style="margin-top:36px">Using Speaker</h2>
-      <dl class="faq">
-        <dt>My words go to the clipboard instead of the text box.</dt>
-        <dd>Auto-typing is switched off. Open <b>Settings &rarr; Accessibility &rarr; Speaker auto-type</b> and switch it back on. If it keeps turning itself off, see the next question.</dd>
-        <dt>The bubble disappears, or auto-typing keeps switching off.</dt>
-        <dd>Your phone is closing Speaker in the background to save battery, and Android switches off its Accessibility service when that happens. Set Speaker's battery use to <i>Unrestricted</i>, turn on <i>Auto launch</i> or <i>Autostart</i> if your phone has it, and lock Speaker in Recents. See <a href="guide.html#battery">Background and Battery</a>.</dd>
-        <dt>The auto-type switch is greyed out.</dt>
-        <dd>That's Android 13's protection for apps installed outside Google Play. Go to <b>Settings &rarr; Apps &rarr; Speaker &rarr; &#8942; &rarr; Allow restricted settings</b>, then try again. See <a href="guide.html#restricted">Restricted Settings</a>.</dd>
-        <dt>Auto-typing doesn't work in one particular app.</dt>
-        <dd>A few apps, such as some terminals and games, don't use standard text boxes. In those apps Speaker copies your words to the clipboard. Long-press and choose <i>Paste</i>.</dd>
-        <dt>Does dictation stop when I pause?</dt>
-        <dd>No. Speaker keeps listening until you tap the bubble again, so you can stop to think.</dd>
-        <dt>Which languages are supported?</dt>
-        <dd>That depends on the engine. Most online engines handle dozens of languages and detect them automatically, or you can set a code such as <span class="code">en</span>, <span class="code">hi</span> or <span class="code">en-IN</span>. The built-in engine supports the languages installed for your phone's speech recognition.</dd>
-      </dl>
-
-      <h2 id="costs" style="margin-top:36px">Costs and Privacy</h2>
-      <dl class="faq">
-        <dt>Is Speaker free?</dt>
-        <dd>Yes. There are no ads, subscriptions or in-app purchases. The built-in engine costs nothing. If you use an online engine or AI rewrite, you use your own key and pay that provider directly for what you use. Some providers offer free tiers.</dd>
-        <dt>Can you see what I say?</dt>
-        <dd>No. Speaker has no servers. Your voice goes either to your phone's own speech service or straight from your phone to the provider you chose. See the <a href="privacy.html">Privacy Policy</a>.</dd>
-        <dt>Why does Speaker use Accessibility?</dt>
-        <dd>Accessibility is the Android feature that lets an app type into text boxes in other apps, as a keyboard does. Speaker uses it only to type your dictated words. It doesn't read or collect your screen content.</dd>
-        <dt>Where are my API keys stored?</dt>
-        <dd>Only in Speaker's private storage on your phone. They're excluded from backups and device transfers, and each key is sent only to the provider it belongs to.</dd>
-      </dl>
-
-      <h2 id="contact" style="margin-top:36px">Contact Support</h2>
-      <p>Email <a href="mailto:[CONTACT EMAIL]">[CONTACT EMAIL]</a> with your phone model and Android version. In Speaker, <b>Logs &amp; debugging &rarr; Copy</b> gives you a diagnostic log to paste into your message. It never contains your dictated words or keys.</p>
-    </div>
-
-    <aside class="side">
-      <div class="secnav">
-        <h4>Support <span>/</span> FAQ</h4>
-        <ul>
-          <li><a href="#installing">Installing</a></li>
-          <li><a href="#using">Using Speaker</a></li>
-          <li><a href="#costs">Costs and Privacy</a></li>
-          <li><a href="#contact">Contact Support</a></li>
-          <li><a href="guide.html">Setup Guide</a></li>
-        </ul>
-      </div>
-      <div class="panel peach">
-        <h4>Top Fixes</h4>
-        <p>Words going to the clipboard? Switch <i>Speaker auto-type</i> back on.</p>
-        <p>Bubble disappearing? Set battery to <i>Unrestricted</i>.</p>
-        <p>Switch greyed out? Use <i>Allow restricted settings</i>.</p>
-      </div>
-      <div class="panel blue">
-        <h4>Get Speaker</h4>
-        <p>Version 1.0.0 &middot; 137 KB<br><a href="download.html">Free download</a></p>
-      </div>
+<div class="window">
+  <div class="titlebar">
+    <img src="assets/logo.svg" alt="">
+    <h1>Speaker - FAQ</h1>
+    <div class="ctl" aria-hidden="true"><span class="min"></span><span class="max"></span><span class="close"></span></div>
+  </div>
+  <ul class="menubar"><li><a href="index.html">Welcome</a></li><li><a href="download.html">Download</a></li><li><a href="guide.html">Setup Guide</a></li><li><a href="faq.html" aria-current="page">FAQ</a></li><li><a href="privacy.html">Privacy</a></li><li class="brand-mark">Speaker 1.0.0</li></ul>
+  <div class="toolbar">
+    <a class="tb" href="index.html"><img src="assets/logo.svg" alt="">Home</a>
+    <a class="tb" href="download.html"><img src="assets/ic-download.svg" alt="">Download</a>
+    <span class="tb-sep"></span>
+    <a class="tb" href="guide.html"><img src="assets/ic-help.svg" alt="">Help</a>
+    <a class="tb" href="faq.html"><img src="assets/ic-folder.svg" alt="">FAQ</a>
+    <a class="tb" href="privacy.html"><img src="assets/ic-shield.svg" alt="">Privacy</a>
+  </div>
+  <div class="addressbar">Address
+    <div class="address"><img src="assets/logo.svg" alt="">Speaker &gt; Help and Support &gt; FAQ</div>
+    <a class="go" href="faq.html"><i></i>Go</a>
+  </div>
+  <div class="client">
+    <aside class="taskpane">
+      <div class="tp special"><div class="tp-h">Topics</div><div class="tp-b"><ul><li><a href="#installing"><img src="assets/ic-download.svg" alt="">Installing</a></li><li><a href="#using"><img src="assets/logo.svg" alt="">Using Speaker</a></li><li><a href="#costs"><img src="assets/ic-shield.svg" alt="">Costs and privacy</a></li><li><a href="#contact"><img src="assets/ic-mail.svg" alt="">Contact support</a></li></ul></div></div>
+      <div class="tp"><div class="tp-h">Other Places</div><div class="tp-b"><ul><li><a href="index.html"><img src="assets/logo.svg" alt="">Welcome</a></li><li><a href="download.html"><img src="assets/ic-download.svg" alt="">Download</a></li><li><a href="guide.html"><img src="assets/ic-help.svg" alt="">Setup Guide</a></li><li><a href="faq.html"><img src="assets/ic-folder.svg" alt="">FAQ</a></li><li><a href="privacy.html"><img src="assets/ic-shield.svg" alt="">Privacy Policy</a></li></ul></div></div>
     </aside>
+    <main class="content">
+      <h2 class="big">Frequently Asked Questions</h2>
+      <p class="muted">Click a question to see the answer.</p>
+      <div class="group" id="installing">Installing</div>
+      <details class="q" open><summary>Why isn't Speaker on Google Play?</summary><div class="a"><p>It's on its way. Until then you can install it from this website, and this page will link to the Play listing once it's live.</p></div></details>
+      <details class="q"><summary>Android warns me about installing the file. Is that expected?</summary><div class="a"><p>Yes. Android shows that warning for any app installed from outside Google Play. Speaker contains no ads or trackers and only asks for the permissions it needs. To check the file, compare it with the values on the <a href="download.html#verify">download page</a>.</p></div></details>
+      <details class="q"><summary>How do I update?</summary><div class="a"><p>Download the newer version from the <a href="download.html">download page</a> and install it over the one you have. Don't uninstall first, so your settings and keys are kept.</p></div></details>
+      <details class="q"><summary>Can I switch to the Google Play version later?</summary><div class="a"><p>Yes. If Android won't install the Play version over this one, uninstall Speaker and then install it from Play. You'll need to enter your keys and settings again.</p></div></details>
+      <div class="group" id="using">Using Speaker</div>
+      <details class="q" open><summary>My words go to the clipboard instead of the text box.</summary><div class="a"><p>Auto-typing is switched off. Open <b>Settings &gt; Accessibility &gt; Speaker auto-type</b> and switch it back on. If it keeps turning itself off, see the next question.</p></div></details>
+      <details class="q"><summary>The bubble disappears, or auto-typing keeps switching off.</summary><div class="a"><p>Your phone is closing Speaker in the background to save battery, and Android switches off its Accessibility service when that happens. Set battery use to <i>Unrestricted</i>, turn on <i>Auto launch</i> or <i>Autostart</i> if your phone has it, and lock Speaker in Recents. See <a href="guide.html#battery">Background and battery</a>.</p></div></details>
+      <details class="q"><summary>The auto-type switch is greyed out.</summary><div class="a"><p>That's Android 13's protection for apps installed outside Google Play. Go to <b>Settings &gt; Apps &gt; Speaker &gt; &#8942; &gt; Allow restricted settings</b>, then try again. See <a href="guide.html#restricted">Restricted settings</a>.</p></div></details>
+      <details class="q"><summary>Auto-typing doesn't work in one particular app.</summary><div class="a"><p>A few apps, such as some terminals and games, don't use standard text boxes. In those apps Speaker copies your words to the clipboard. Long-press and choose <i>Paste</i>.</p></div></details>
+      <details class="q"><summary>Does dictation stop when I pause?</summary><div class="a"><p>No. Speaker keeps listening until you tap the bubble again, so you can stop to think.</p></div></details>
+      <details class="q"><summary>Which languages are supported?</summary><div class="a"><p>That depends on the engine. Most online engines handle dozens of languages and detect them automatically, or you can set a code such as <i>en</i>, <i>hi</i> or <i>en-IN</i>. The built-in engine supports the languages installed for your phone's speech recognition.</p></div></details>
+      <div class="group" id="costs">Costs and privacy</div>
+      <details class="q"><summary>Is Speaker free?</summary><div class="a"><p>Yes. There are no ads, subscriptions or in-app purchases. The built-in engine costs nothing. If you use an online engine or AI rewrite, you use your own key and pay that provider directly for what you use. Some providers offer free tiers.</p></div></details>
+      <details class="q"><summary>Can you see what I say?</summary><div class="a"><p>No. Speaker has no servers. Your voice goes either to your phone's own speech service or straight from your phone to the provider you chose. See the <a href="privacy.html">privacy policy</a>.</p></div></details>
+      <details class="q"><summary>Why does Speaker use Accessibility?</summary><div class="a"><p>Accessibility is the Android feature that lets an app type into text boxes in other apps, as a keyboard does. Speaker uses it only to type your dictated words. It doesn't read or collect your screen content.</p></div></details>
+      <details class="q"><summary>Where are my API keys stored?</summary><div class="a"><p>Only in Speaker's private storage on your phone. They're excluded from backups and device transfers, and each key is sent only to the provider it belongs to.</p></div></details>
+      <div class="group" id="contact">Contact support</div>
+      <p>Email <a href="mailto:[CONTACT EMAIL]">[CONTACT EMAIL]</a> with your phone model and Android version. In Speaker, <b>Logs &amp; debugging &gt; Copy</b> gives you a diagnostic log to paste into your message. It never contains your dictated words or keys.</p>
+    </main>
   </div>
+  <div class="statusbar"><span>Done</span><span>&copy; 2026 [DEVELOPER NAME]</span><span><img src="assets/ic-shield.svg" alt="">No tracking</span></div>
 </div>
 
-<div class="foot">
-  <div class="wrap">
-    <div class="foot-cols">
-      <div><h5>Speaker</h5><ul><li><a href="index.html#features">Features</a></li><li><a href="index.html#ai">AI Rewrite</a></li><li><a href="index.html#engines">Speech Engines</a></li></ul></div>
-      <div><h5>Download</h5><ul><li><a href="download.html">Get Speaker</a></li><li><a href="download.html#releases">Release Notes</a></li><li><a href="download.html#requirements">Requirements</a></li></ul></div>
-      <div><h5>Support</h5><ul><li><a href="guide.html">Setup Guide</a></li><li><a href="faq.html">FAQ</a></li><li><a href="mailto:[CONTACT EMAIL]">Contact</a></li></ul></div>
-      <div><h5>About</h5><ul><li><a href="privacy.html">Privacy Policy</a></li><li><a href="mailto:[CONTACT EMAIL]">[CONTACT EMAIL]</a></li></ul></div>
-      <div class="ver"><b>Current version</b>Speaker 1.0.0 for Android</div>
+<div class="taskbar">
+  <details class="start">
+    <summary><img src="assets/logo.svg" alt="">start</summary>
+    <div class="startmenu">
+      <div class="sm-head"><img src="assets/logo.svg" alt="">Speaker</div>
+      <div class="sm-cols">
+        <div class="sm-left">
+          <a href="downloads/Speaker-1.0.0.apk" download><img src="assets/ic-download.svg" alt=""><span><b>Download Speaker</b><small>Version 1.0.0 &middot; 137 KB</small></span></a>
+          <a href="guide.html"><img src="assets/ic-help.svg" alt=""><span><b>Setup Guide</b><small>Get started step by step</small></span></a>
+          <a href="faq.html"><img src="assets/ic-folder.svg" alt=""><span><b>FAQ</b><small>Answers to common questions</small></span></a>
+          <a href="index.html#features"><img src="assets/ic-spark.svg" alt=""><span><b>Features</b><small>What Speaker can do</small></span></a>
+        </div>
+        <div class="sm-right">
+          <a href="index.html"><img src="assets/logo.svg" alt="">Welcome</a>
+          <a href="download.html#releases"><img src="assets/ic-doc.svg" alt="">Release Notes</a>
+          <a href="download.html#requirements"><img src="assets/ic-phone.svg" alt="">Requirements</a>
+          <a href="privacy.html"><img src="assets/ic-shield.svg" alt="">Privacy Policy</a>
+          <a href="mailto:[CONTACT EMAIL]"><img src="assets/ic-mail.svg" alt="">Contact</a>
+        </div>
+      </div>
+      <div class="sm-foot">Speaker for Android</div>
     </div>
-    <div class="foot-base">Copyright &copy; 2026 [DEVELOPER NAME]. All rights reserved. &nbsp; <a href="privacy.html">Privacy Policy</a> Android is a trademark of Google LLC.</div>
-  </div>
+  </details>
+  <div class="tasks"><a class="task" href="index.html"><img src="assets/logo.svg" alt="">Welcome</a><a class="task" href="download.html"><img src="assets/ic-download.svg" alt="">Download</a><a class="task" href="guide.html"><img src="assets/ic-help.svg" alt="">Setup Guide</a><a class="task on" href="faq.html"><img src="assets/ic-doc.svg" alt="">FAQ</a><a class="task" href="privacy.html"><img src="assets/ic-shield.svg" alt="">Privacy</a></div>
+  <div class="tray"><img src="assets/ic-shield.svg" alt=""><img src="assets/logo.svg" alt=""><span id="clock">12:00 PM</span></div>
 </div>
-
+<script>
+(function () {
+  var c = document.getElementById("clock");
+  function t() { var d = new Date(), h = d.getHours(), m = d.getMinutes();
+    c.textContent = ((h % 12) || 12) + ":" + (m < 10 ? "0" : "") + m + (h < 12 ? " AM" : " PM"); }
+  t(); setInterval(t, 15000);
+})();
+</script>
 </body>
 </html>
