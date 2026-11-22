@@ -44,6 +44,16 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
          * isFinal=true. [phrase] is trimmed; the listener keeps the draft and sends it with [rewrite].
          */
         fun onDraft(phrase: String, isFinal: Boolean) {}
+        /** The user started (true) or stopped (false) speaking, from the mic level. Drives the bubble animation. */
+        fun onVoice(speaking: Boolean) {}
+    }
+
+    // Last value sent to onVoice, so it's only called on changes. Main thread only.
+    private var voiceOn = false
+    private fun voice(on: Boolean) {
+        if (on == voiceOn) return
+        voiceOn = on
+        listener.onVoice(on)
     }
 
     /** Result of [rewrite]: [text] is the AI's version when [ok], else the input; [why] says what failed. */
@@ -137,6 +147,9 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         main.post { if (!released) block() }
     }
 
+    /** Speech started/stopped, from the API recorder's thread. */
+    private fun recorderSpeech(on: Boolean) = post { if (state == State.RECORDING || !on) voice(on) }
+
     private val micEvents = object : MicPipe.Events {
         override fun onPipeClosedByRecognizer() = post {
             if (!builtinActive || state != State.RECORDING || !usingAudioSource) return@post
@@ -201,6 +214,7 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
         if (s == state) return
         Log.i(tag, "STATE $state -> $s (session $session)")
         state = s
+        if (s != State.RECORDING) voice(false)
         listener.onStateChanged(s)
     }
 
@@ -248,7 +262,7 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
                 listenOnce("session start", muteBeep = false)
             } else {
                 val sid = session
-                val r = SegmentingRecorder(ctx.cacheDir) { file, info ->
+                val r = SegmentingRecorder(ctx.cacheDir, onSpeech = ::recorderSpeech) { file, info ->
                     Log.i(tag, "Queueing phrase #${info.index} for transcription")
                     onWorker { transcribePhrase(sid, file, info) }
                 }
@@ -323,7 +337,7 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
                 Log.w(tag, "WATCHDOG: recorder thread died; starting a new one")
                 runCatching { r.stop() }
                 recorder = runCatching {
-                    SegmentingRecorder(ctx.cacheDir) { file, info ->
+                    SegmentingRecorder(ctx.cacheDir, onSpeech = ::recorderSpeech) { file, info ->
                         onWorker { transcribePhrase(sid, file, info) }
                     }.also { it.start() }
                 }.getOrElse { e ->
@@ -741,6 +755,7 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
 
         override fun onRmsChanged(rmsdB: Float) {
             if (rmsdB > maxRmsSinceLog) maxRmsSinceLog = rmsdB
+            if (state == State.RECORDING) voice(rmsdB > SPEAKING_RMS_DB)
             val now = SystemClock.elapsedRealtime()
             lastRmsAt = now
             rmsSeenThisListen = true
@@ -861,6 +876,8 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
     }
 
     companion object {
+        /** Built-in recognizer level (dB) above which we treat it as speech, for the bubble animation. */
+        const val SPEAKING_RMS_DB = 4.5f
         val BEEP_STREAMS = intArrayOf(
             AudioManager.STREAM_MUSIC, AudioManager.STREAM_SYSTEM,
             AudioManager.STREAM_NOTIFICATION, AudioManager.STREAM_ACCESSIBILITY,

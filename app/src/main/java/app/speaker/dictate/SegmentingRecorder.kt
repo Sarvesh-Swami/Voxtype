@@ -21,6 +21,8 @@ import kotlin.math.sqrt
  */
 class SegmentingRecorder(
     private val dir: File,
+    /** Called on the recorder thread when speech starts (true) or stops (false). */
+    private val onSpeech: ((Boolean) -> Unit)? = null,
     private val onSegment: (File, Segment) -> Unit,
 ) {
     data class Segment(val index: Int, val durationMs: Long, val speechMs: Long)
@@ -93,6 +95,8 @@ class SegmentingRecorder(
         var noise = -1.0
         var lastStatsAt = System.currentTimeMillis()
         var peakRms = 0.0
+        var speaking = false
+        var quietMs = 10_000L
         try {
             while (running) {
                 val n = record.read(frame, 0, FRAME_SAMPLES)
@@ -132,6 +136,13 @@ class SegmentingRecorder(
                 val threshold = max(noise * 2.5, MIN_THRESHOLD)
                 val isSpeech = rms > threshold
                 val frameMs = n * 1000L / SAMPLE_RATE
+                // Speaking = speech in the last ~250 ms (avoids flicker between words).
+                quietMs = if (isSpeech) 0 else quietMs + frameMs
+                val speakingNow = quietMs < 250
+                if (speakingNow != speaking) {
+                    speaking = speakingNow
+                    onSpeech?.invoke(speakingNow)
+                }
 
                 bytes.clear()
                 for (i in 0 until n) bytes.putShort(frame[i])
@@ -171,6 +182,7 @@ class SegmentingRecorder(
             error = e
             runCatching { seg.discard() }
         } finally {
+            if (speaking) onSpeech?.invoke(false)
             runCatching { record.stop() }
             record.release()
             Log.i(TAG, "Recording stopped: ${index} phrase(s) sent, $silenceResets silent stretch(es) dropped")

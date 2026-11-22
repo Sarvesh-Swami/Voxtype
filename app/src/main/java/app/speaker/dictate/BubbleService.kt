@@ -22,7 +22,6 @@ import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -44,6 +43,9 @@ class BubbleService : Service(), DictationEngine.Listener {
         private const val CHANNEL_ID = "dictation"
         private const val NOTIF_ID = 1
         private const val CUSTOM_QUIT = "quit"
+        /** Size of the floating boy (transparent window; he stands inside it). */
+        private const val BUBBLE_W_DP = 72
+        private const val BUBBLE_H_DP = 100
 
         /** Re-applies bubble/island settings if the service is running. */
         fun refresh(ctx: Context) {
@@ -59,7 +61,7 @@ class BubbleService : Service(), DictationEngine.Listener {
     private lateinit var engine: DictationEngine
     private lateinit var prefs: Prefs
     private lateinit var wm: WindowManager
-    private var bubble: ImageView? = null
+    private var bubble: BoyView? = null
     private var params: WindowManager.LayoutParams? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -236,7 +238,6 @@ class BubbleService : Service(), DictationEngine.Listener {
     private fun removeBubble() {
         hideCard()
         hideMenu()
-        pulse?.cancel(); pulse = null
         bubble?.let { runCatching { wm.removeView(it) }.onFailure { e -> log("removeView failed: $e") } }
         bubble = null
     }
@@ -340,6 +341,7 @@ class BubbleService : Service(), DictationEngine.Listener {
     }
 
     override fun onText(text: String, isFinal: Boolean, sessionText: String) {
+        bubble?.nudge()
         sessionChars = sessionText.length
         val result = LiveTyper.update(this, text, isFinal, sessionText)
         if (isFinal) log("Phrase settled: ${text.length} chars -> $result")
@@ -350,6 +352,10 @@ class BubbleService : Service(), DictationEngine.Listener {
     }
 
     override fun onError(message: String) = toast(message)
+
+    override fun onVoice(speaking: Boolean) {
+        bubble?.speaking = speaking
+    }
 
     // ---- AI rewrite: draft card next to the bubble ----
     // With AI rewrite on, nothing is typed while you speak. Your words collect in this card, where
@@ -383,6 +389,7 @@ class BubbleService : Service(), DictationEngine.Listener {
 
     override fun onDraft(phrase: String, isFinal: Boolean) {
         if (!draftSession || discardWhenIdle) return
+        bubble?.nudge()
         if (card == null) showDraftCard()
         if (!isFinal) {
             cardLive?.apply { text = "🎤 $phrase"; visibility = View.VISIBLE }
@@ -538,7 +545,7 @@ class BubbleService : Service(), DictationEngine.Listener {
         moveCard()
     }
 
-    private fun cardWidth() = minOf(dp(290), screenSize().first - dp(58) - dp(44))
+    private fun cardWidth() = minOf(dp(290), screenSize().first - dp(BUBBLE_W_DP) - dp(28))
 
     private fun createCard(): Boolean {
         val w = cardWidth()
@@ -694,10 +701,10 @@ class BubbleService : Service(), DictationEngine.Listener {
             View.MeasureSpec.makeMeasureSpec(screenSize().first, View.MeasureSpec.AT_MOST),
             View.MeasureSpec.UNSPECIFIED
         )
-        val size = dp(58)
+        val bw = dp(BUBBLE_W_DP); val bh = dp(BUBBLE_H_DP)
         val (sw, sh) = screenSize()
-        lp.x = if (bp.x + size / 2 > sw / 2) bp.x - c.measuredWidth - dp(8) else bp.x + size + dp(8)
-        lp.y = (bp.y + (size - c.measuredHeight) / 2).coerceIn(dp(24), (sh - c.measuredHeight - dp(24)).coerceAtLeast(dp(24)))
+        lp.x = if (bp.x + bw / 2 > sw / 2) bp.x - c.measuredWidth else bp.x + bw
+        lp.y = (bp.y + (bh - c.measuredHeight) / 2).coerceIn(dp(24), (sh - c.measuredHeight - dp(24)).coerceAtLeast(dp(24)))
         runCatching { wm.updateViewLayout(c, lp) }
     }
 
@@ -750,10 +757,10 @@ class BubbleService : Service(), DictationEngine.Listener {
             PixelFormat.TRANSLUCENT
         ).apply { gravity = Gravity.TOP or Gravity.START }
         layout.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
-        val size = dp(58)
+        val bw = dp(BUBBLE_W_DP)
         val (sw, sh) = screenSize()
-        lp.x = if (bp.x + size / 2 > sw / 2) bp.x - layout.measuredWidth - dp(8) else bp.x + size + dp(8)
-        lp.y = bp.y.coerceIn(dp(24), (sh - layout.measuredHeight - dp(24)).coerceAtLeast(dp(24)))
+        lp.x = if (bp.x + bw / 2 > sw / 2) bp.x - layout.measuredWidth else bp.x + bw
+        lp.y = (bp.y + dp(20)).coerceIn(dp(24), (sh - layout.measuredHeight - dp(24)).coerceAtLeast(dp(24)))
         runCatching { wm.addView(layout, lp) }
             .onSuccess { menu = layout; mainHandler.postDelayed(hideMenuLater, 6000) }
             .onFailure { log("Quick menu could not be shown: $it"); openApp() }
@@ -805,15 +812,11 @@ class BubbleService : Service(), DictationEngine.Listener {
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     private fun addBubble() {
-        val size = dp(58)
-        val view = ImageView(this).apply {
-            scaleType = ImageView.ScaleType.FIT_CENTER
-            setPadding(dp(16), dp(16), dp(16), dp(16))
-            elevation = dp(6).toFloat()
-            contentDescription = "Speaker dictation"
-        }
+        val w = dp(BUBBLE_W_DP); val h = dp(BUBBLE_H_DP)
+        // The boy on a transparent background (no circle behind him), standing at the screen edge.
+        val view = BoyView(this).apply { contentDescription = "Speaker dictation" }
         val lp = WindowManager.LayoutParams(
-            size, size,
+            w, h,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             // Not focusable: the app underneath keeps keyboard focus, so text lands in its field.
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
@@ -825,7 +828,7 @@ class BubbleService : Service(), DictationEngine.Listener {
         }
         val (sw, sh) = screenSize()
         val savedX = lp.x; val savedY = lp.y
-        clampOnScreen(lp, size, snap = false)
+        clampOnScreen(lp, w, h, snap = false)
         if (lp.x != savedX || lp.y != savedY) {
             log("Saved bubble position x=$savedX y=$savedY was off-screen (screen ${sw}x$sh); moved to x=${lp.x} y=${lp.y}")
             prefs.bubbleX = lp.x; prefs.bubbleY = lp.y
@@ -844,7 +847,8 @@ class BubbleService : Service(), DictationEngine.Listener {
             }
         }
         wm.addView(view, lp)
-        log("Bubble overlay added at x=${lp.x} y=${lp.y} size=${size}px screen=${sw}x$sh")
+        log("Bubble overlay added at x=${lp.x} y=${lp.y} size=${w}x${h}px screen=${sw}x$sh")
+        view.faceLeft = lp.x + w / 2 > sw / 2
         bubble = view
         params = lp
         renderBubble()
@@ -852,16 +856,13 @@ class BubbleService : Service(), DictationEngine.Listener {
 
     private fun renderBubble() {
         val b = bubble ?: return
-        val (icon, bg) = when {
-            processing -> R.drawable.ic_dots to R.drawable.bg_mic_working
-            else -> when (currentState) {
-                DictationEngine.State.IDLE -> R.drawable.ic_mic to R.drawable.bg_mic_idle
-                DictationEngine.State.RECORDING -> R.drawable.ic_stop to R.drawable.bg_mic_recording
-                DictationEngine.State.WORKING -> R.drawable.ic_dots to R.drawable.bg_mic_working
-            }
+        b.mode = when {
+            processing -> BoyView.Mode.THINKING
+            currentState == DictationEngine.State.RECORDING -> BoyView.Mode.LISTENING
+            currentState == DictationEngine.State.WORKING -> BoyView.Mode.THINKING
+            hasDraft -> BoyView.Mode.LISTENING // draft waiting for Send: headphones stay off
+            else -> BoyView.Mode.VIBING
         }
-        b.setImageResource(icon)
-        b.setBackgroundResource(bg)
         b.contentDescription = when {
             processing -> "Processing with AI"
             currentState == DictationEngine.State.IDLE && hasDraft -> "Send to AI"
@@ -870,30 +871,7 @@ class BubbleService : Service(), DictationEngine.Listener {
             currentState == DictationEngine.State.RECORDING -> "Stop dictation"
             else -> "Finishing dictation"
         }
-        // Pulse for the whole time we're listening (or the AI is working), so the bubble shows it.
-        // Scales inward so it never gets clipped by the overlay window's edges.
-        if (currentState == DictationEngine.State.RECORDING || processing) {
-            if (pulse == null) {
-                pulse = android.animation.ObjectAnimator.ofPropertyValuesHolder(
-                    b,
-                    android.animation.PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 0.86f),
-                    android.animation.PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 0.86f),
-                ).apply {
-                    duration = 700
-                    repeatCount = android.animation.ValueAnimator.INFINITE
-                    repeatMode = android.animation.ValueAnimator.REVERSE
-                    start()
-                }
-            }
-        } else {
-            pulse?.cancel()
-            pulse = null
-            b.scaleX = 1f
-            b.scaleY = 1f
-        }
     }
-
-    private var pulse: android.animation.ObjectAnimator? = null
 
     private fun screenSize(): Pair<Int, Int> =
         if (android.os.Build.VERSION.SDK_INT >= 30) {
@@ -908,15 +886,16 @@ class BubbleService : Service(), DictationEngine.Listener {
      * mostly hidden and the system back-gesture zone swallowed taps). With [snap], it also
      * docks to the nearer side, a little away from the edge so taps aren't read as "back".
      */
-    private fun clampOnScreen(lp: WindowManager.LayoutParams, size: Int, snap: Boolean) {
+    private fun clampOnScreen(lp: WindowManager.LayoutParams, w: Int, h: Int, snap: Boolean) {
         val (sw, sh) = screenSize()
-        val margin = dp(12)
-        val minX = margin
-        val maxX = (sw - size - margin).coerceAtLeast(minX)
-        val minY = dp(48)
-        val maxY = (sh - size - dp(72)).coerceAtLeast(minY)
-        lp.x = if (snap) { if (lp.x + size / 2 < sw / 2) minX else maxX } else lp.x.coerceIn(minX, maxX)
+        // No margin: the boy's own transparent sides keep him clear of the edge (and its back gesture).
+        val minX = 0
+        val maxX = (sw - w).coerceAtLeast(minX)
+        val minY = dp(40)
+        val maxY = (sh - h - dp(56)).coerceAtLeast(minY)
+        lp.x = if (snap) { if (lp.x + w / 2 < sw / 2) minX else maxX } else lp.x.coerceIn(minX, maxX)
         lp.y = lp.y.coerceIn(minY, maxY)
+        bubble?.faceLeft = lp.x + w / 2 > sw / 2
     }
 
     private inner class BubbleTouch(private val lp: WindowManager.LayoutParams) : View.OnTouchListener {
@@ -942,6 +921,7 @@ class BubbleService : Service(), DictationEngine.Listener {
                 MotionEvent.ACTION_DOWN -> {
                     startX = lp.x; startY = lp.y
                     downX = e.rawX; downY = e.rawY
+                    bubble?.wake()
                     dragging = false; longPressed = false
                     downTime = e.eventTime
                     v.postDelayed(longPress, ViewConfiguration.getLongPressTimeout().toLong())
@@ -974,7 +954,7 @@ class BubbleService : Service(), DictationEngine.Listener {
                     when {
                         dragging -> {
                             val rawX = lp.x; val rawY = lp.y
-                            clampOnScreen(lp, v.width, snap = true)
+                            clampOnScreen(lp, v.width, v.height, snap = true)
                             wm.updateViewLayout(v, lp)
                             moveCard()
                             prefs.bubbleX = lp.x; prefs.bubbleY = lp.y
