@@ -35,7 +35,8 @@ def page(file, doc_title, desc, body):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{doc_title}</title>
 <meta name="description" content="{desc}">
-<meta name="theme-color" content="#7c4dff">
+<meta name="theme-color" content="#ffd23f">
+<link rel="preload" href="assets/fonts/archivo-black-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/style.css">
 </head>
@@ -50,6 +51,7 @@ def page(file, doc_title, desc, body):
 {body}
 
 <footer class="footer"><div class="wrap">
+  <div class="giant" aria-hidden="true">SPEAK<span>ER</span></div>
   <div class="cols">
     <div>
       <a class="logo" href="index.html"><img src="assets/logo.svg" alt="" width="36" height="36">Speaker</a>
@@ -67,7 +69,7 @@ def page(file, doc_title, desc, body):
 '''
 
 def page_hero(title, sub):
-    return f'''<section class="page-hero"><span class="blob b1"></span><span class="blob b2"></span><div class="wrap">
+    return f'''<section class="page-hero"><span class="shape s-circle p1"></span><span class="shape s-half p2"></span><span class="shape p3"></span><div class="wrap">
   <h1>{title}</h1>
   <p>{sub}</p>
 </div></section>'''
@@ -83,151 +85,134 @@ def side(title, items):
 
 # ================================================================ HOME
 home = f'''<section class="hero">
-  <span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span>
   <div class="wrap">
     <div class="hero-copy">
-      <span class="pill"><b>New</b> Speaker {VERSION} with AI rewrite</span>
-      <h1>Talk. <span class="grad-text">Speaker types it.</span></h1>
-      <p class="lead">A friendly little microphone that floats over every app on your Android phone. Tap it, say what you want, and your words appear right where you're writing.</p>
-      <div class="hero-actions">
-        <a class="btn btn-lg" href="download.html">{DL}Download for Android</a>
-        <a class="btn btn-lg btn-ghost" href="#how">See how it works</a>
+      <span class="tag"><b>NEW</b>Speaker {VERSION} &middot; now with AI rewrite</span>
+      <h1><span>Talk.</span><span class="stripes">It types.</span><span><span class="hl">Anywhere.</span></span></h1>
+      <p class="lead">A floating microphone for every app on your Android phone. Tap it, say the thing, and your words land right where you're writing.</p>
+      <div class="actions">
+        <a class="btn" href="download.html">{DL}Download free</a>
+        <a class="btn btn-white btn-round" href="#how">How it works &rarr;</a>
       </div>
-      <ul class="chips">
-        <li><i style="background:#22c55e"></i>Free</li>
-        <li><i style="background:#3b82f6"></i>Android 8.0+</li>
-        <li><i style="background:#ff5c8a"></i>No account</li>
-        <li><i style="background:#ff9a3c"></i>No ads</li>
-      </ul>
     </div>
     <div class="hero-art" aria-hidden="true">
-      <div class="phone"><div class="screen">
-        <div class="status"><span>9:41</span><span>&#9679;&#9679;&#9679;</span></div>
-        <div class="appbar"><i></i>Alex</div>
-        <div class="msg">Are we still on for tomorrow's review?</div>
-        <div class="msg me">Yes! Ten o'clock in the main room.</div>
-        <div class="msg">Great. Can you bring the printed copies?</div>
-        <div class="bubble">{MIC}</div>
-        <div class="compose"><span>Sure, I'll bring them along<span class="caret"></span></span><i></i></div>
+      <span class="shape s-circle s1"></span>
+      <span class="shape s2"></span>
+      <span class="shape s-half s3"></span>
+      <span class="shape s-circle s4"></span>
+      <div class="device"><span class="cam"></span><div class="scr">
+        <div class="bar"><i></i>Alex</div>
+        <div class="m">tomorrow's review still on?</div>
+        <div class="m me">yes! 10am, main room</div>
+        <div class="m">bring the printed copies?</div>
+        <div class="mic">{MIC}</div>
+        <div class="typing">Sure, I'll bring them along<span class="caret"></span></div>
       </div></div>
-      <div class="float f1"><i style="background:linear-gradient(135deg,#ff7aa2,#ff4f7e)">{MIC}</i><span>Listening&hellip;<small>Tap again to stop</small></span></div>
-      <div class="float f2"><i style="background:linear-gradient(135deg,#9b7bff,#7c4dff)">&#10024;</i><span>AI rewrite<small>Polished in one tap</small></span></div>
-      <div class="float f3"><i style="background:linear-gradient(135deg,#4ade80,#16a34a)">&#10003;</i><span>Typed for you<small>In any app</small></span></div>
+      <span class="sticker st1">Tap &amp; talk</span>
+      <span class="sticker st2">&#10024; AI rewrite</span>
+      <div class="burst">NO<br>ADS</div>
+      <svg class="spin" viewBox="0 0 150 150"><defs><path id="ring" d="M75 75m-58 0a58 58 0 1 1 116 0a58 58 0 1 1-116 0"/></defs><circle cx="75" cy="75" r="72" fill="#fff" stroke="#111" stroke-width="3"/><circle cx="75" cy="75" r="22" fill="#ffd23f" stroke="#111" stroke-width="3"/><text><textPath href="#ring">voice typing &#10033; for android &#10033; free &#10033; </textPath></text></svg>
     </div>
   </div>
 </section>
 
-<div class="strip"><div class="wrap">
-  <span>Works with</span><b>Android speech</b><b>OpenAI</b><b>Groq</b><b>Google Gemini</b><b>Deepgram</b><b>Anthropic Claude</b>
+<div class="marquee" aria-hidden="true"><div class="track">
+  <span>Talk</span><span>&#10033; Type</span><span>Send</span><span>&#10033; Any app</span><span>No keyboard</span><span>&#10033; No account</span><span>Talk</span><span>&#10033; Type</span><span>Send</span><span>&#10033; Any app</span><span>No keyboard</span><span>&#10033; No account</span>
+  <span>Talk</span><span>&#10033; Type</span><span>Send</span><span>&#10033; Any app</span><span>No keyboard</span><span>&#10033; No account</span><span>Talk</span><span>&#10033; Type</span><span>Send</span><span>&#10033; Any app</span><span>No keyboard</span><span>&#10033; No account</span>
 </div></div>
 
 <section class="section" id="features"><div class="wrap">
   <div class="head">
-    <span class="kicker k-violet">Features</span>
-    <h2>Everything you need to <span class="grad-text">type with your voice</span></h2>
-    <p>Simple enough to use in seconds, flexible enough to fit the way you work.</p>
+    <span class="label">Features</span>
+    <h2>Your voice, <span class="outline">every</span> <span class="hl pink">app.</span></h2>
+    <p>Simple enough to use in seconds. Flexible enough to fit the way you work.</p>
   </div>
-  <div class="grid g3">
-    <div class="card"><div class="icon i-violet">{I_MIC}</div><h3>Floating microphone</h3><p>A bubble that sits over every app. Tap to start, tap to stop, and drag it wherever you like.</p></div>
-    <div class="card"><div class="icon i-pink">{I_TYPE}</div><h3>Types where you are</h3><p>Words go straight into the text box you're using. If an app won't accept typing, they go to the clipboard.</p></div>
-    <div class="card"><div class="icon i-orange">{I_INF}</div><h3>Talk as long as you like</h3><p>Speaker keeps listening through pauses, so you can stop and think without losing your place.</p></div>
-    <div class="card"><div class="icon i-blue">{I_SPARK}</div><h3>AI rewrite</h3><p>Say it your way, check the draft, and send it once for clean, punctuated text in your own style.</p></div>
-    <div class="card"><div class="icon i-green">{I_SLIDERS}</div><h3>Your choice of engine</h3><p>Use your phone's free speech recognition, or connect the provider you prefer with your own key.</p></div>
-    <div class="card"><div class="icon i-teal">{I_BOLT}</div><h3>Quick to start</h3><p>From the bubble, the notification, a Quick Settings tile or the big button in the app.</p></div>
+  <div class="bento">
+    <div class="tile t-wide t-yellow"><div class="glyph">{I_MIC}</div><h3>Floating microphone</h3><p>A bubble that sits over every app. Tap to start, tap to stop, drag it wherever you like.</p><span class="big">01</span></div>
+    <div class="tile t-round t-pink"><div class="glyph round">{I_TYPE}</div><h3>Types where you are</h3><p>Straight into the text box you're using.</p></div>
+    <div class="tile t-tall t-purple t-arch"><div class="glyph round">{I_SPARK}</div><h3>AI rewrite</h3><p>Say it your way, check the draft, then send it once for clean, punctuated text in your own style. Works with OpenAI, Claude, Gemini, Groq or your own server.</p></div>
+    <div class="tile t-cut t-mint"><div class="glyph">{I_INF}</div><h3>No time limit</h3><p>Keeps listening through pauses, so you can stop and think.</p></div>
+    <div class="tile t-blob t-lime"><div class="glyph round">{I_SLIDERS}</div><h3>Pick your engine</h3><p>Free built-in, or bring your own key.</p></div>
+    <div class="tile t-yellow"><div class="glyph">{ic('<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h4"/>')}</div><h3>Clipboard backup</h3><p>No text box selected? Your words are copied, never lost.</p></div>
+    <div class="tile t-wide t-pill t-orange"><div class="glyph round">{I_BOLT}</div><div><h3>Start it your way</h3><p>The bubble, the notification, a Quick Settings tile, or the big button in the app.</p></div></div>
+    <div class="tile t-wide t-stripes"><div class="glyph round">{ic('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>')}</div><h3>Recent dictations</h3><p>Optionally keep your last 50 dictations and their AI versions on the phone, ready to copy. Long-press the bubble for a quick menu.</p><span class="big">50</span></div>
   </div>
 </div></section>
 
-<section class="section soft" id="how"><div class="wrap">
-  <div class="head">
-    <span class="kicker k-orange">How it works</span>
-    <h2>Up and talking in <span class="warm-text">two minutes</span></h2>
+<section class="section yellow" id="how"><div class="wrap">
+  <div class="head center center-text" style="text-align:center">
+    <span class="label">How it works</span>
+    <h2>Three steps. <span class="outline">Zero</span> typing.</h2>
   </div>
   <div class="steps">
-    <div class="step"><div class="num" style="background:linear-gradient(135deg,#9b7bff,#7c4dff)">1</div><h3>Install Speaker</h3><p>Download the app and follow the quick setup card: microphone, bubble and auto-typing.</p></div>
-    <div class="step"><div class="num" style="background:linear-gradient(135deg,#ff7aa2,#ff4f7e)">2</div><h3>Open any app</h3><p>Messages, email, notes, a browser. Tap into the box where you want to write.</p></div>
-    <div class="step"><div class="num" style="background:linear-gradient(135deg,#ffb35c,#ff8a2b)">3</div><h3>Tap and talk</h3><p>Tap the bubble and speak. Your words appear as you pause. Tap again when you're done.</p></div>
+    <div class="step"><span class="n">01</span><h3>Install Speaker</h3><p>Download the app and follow the quick setup card: microphone, bubble and auto-typing.</p></div>
+    <div class="step"><span class="n">02</span><h3>Open any app</h3><p>Messages, email, notes, a browser. Tap into the box where you want to write.</p></div>
+    <div class="step"><span class="n">03</span><h3>Tap &amp; talk</h3><p>Tap the bubble and speak. Your words appear as you pause. Tap again when you're done.</p></div>
   </div>
 </div></section>
 
-<section class="section" id="ai"><div class="wrap">
-  <div class="spot"><div class="wrap2">
-    <div class="spot-copy">
-      <h2>Say it messy.<br>Send it polished.</h2>
-      <p>Turn on AI rewrite and your words collect in a little draft card next to the bubble. Fix anything you like, tap Send, and the whole thing is rewritten at once.</p>
-      <ul>
-        <li>Keeps the full context of what you said</li>
-        <li>Edit the draft before it goes anywhere</li>
-        <li>Your own instructions: tone, format, language</li>
-        <li>OpenAI, Claude, Gemini, Groq or your own server</li>
-      </ul>
-    </div>
-    <div class="compare">
-      <div class="say before"><small>What you said</small>um so yeah i can send the summary tonight after i check the numbers with priya and uh let you know</div>
-      <div class="arrow">&darr; &#10024;</div>
-      <div class="say after"><small>What gets typed</small>I can send the summary tonight, after I check the numbers with Priya. I'll let you know.</div>
-    </div>
-  </div></div>
-</div></section>
-
-<section class="section soft" id="engines"><div class="wrap">
+<section class="section blue" id="ai"><div class="wrap">
   <div class="head">
-    <span class="kicker k-blue">Speech engines</span>
-    <h2>Pick the engine that suits you</h2>
-    <p>Start free with your phone's own recognition, or bring a key for any of these. Model names are editable, so new models work right away.</p>
+    <span class="label" style="color:#111">AI rewrite</span>
+    <h2>Say it <span class="dots-text">messy.</span><br>Send it <span class="hl lime" style="color:#111">clean.</span></h2>
+    <p>Your words collect in a draft card next to the bubble. Fix anything you like, tap Send, and the whole thing is rewritten at once, with full context.</p>
   </div>
-  <div class="engines">
-    <div class="engine"><span class="dot" style="background:#22c55e"></span><div><b>Android built-in</b><span>Your phone's own speech recognition.</span><em class="free">Free &middot; no key</em></div></div>
-    <div class="engine"><span class="dot" style="background:#ff8a2b"></span><div><b>Groq</b><span>Very fast Whisper transcription.</span><em>Free tier</em></div></div>
-    <div class="engine"><span class="dot" style="background:#14b8a6"></span><div><b>OpenAI</b><span>High accuracy, great with accents.</span><em>Your key</em></div></div>
-    <div class="engine"><span class="dot" style="background:#3b82f6"></span><div><b>Google Gemini</b><span>Multilingual dictation.</span><em>Your key</em></div></div>
-    <div class="engine"><span class="dot" style="background:#7c4dff"></span><div><b>Deepgram</b><span>Fast, accurate Nova models.</span><em>Your key</em></div></div>
-    <div class="engine"><span class="dot" style="background:#ff4f7e"></span><div><b>Custom server</b><span>Any OpenAI-compatible endpoint.</span><em>Your key</em></div></div>
+  <div class="ba">
+    <div class="card-say say-before"><small>You said</small><s>um</s> so yeah i can send the summary tonight after i check the numbers with priya and <s>uh</s> let you know</div>
+    <div class="ba-arrow"><svg viewBox="0 0 110 60" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 40 C 25 5, 45 55, 65 20 S 90 30, 100 30"/><path d="M88 18l14 12-16 8"/></svg>one tap</div>
+    <div class="card-say say-after"><small>Speaker typed</small>I can send the summary tonight, after I check the numbers with Priya. I'll let you know.</div>
+  </div>
+  <ul class="ai-points">
+    <li>Edit before sending</li><li>Full context, one rewrite</li><li>Your own prompt</li><li>OpenAI &middot; Claude &middot; Gemini &middot; Groq</li><li>Clipboard backup</li>
+  </ul>
+</div></section>
+
+<section class="section" id="engines"><div class="wrap">
+  <div class="head center" style="text-align:center">
+    <span class="label">Speech engines</span>
+    <h2>Bring your <span class="circled">own</span> engine</h2>
+    <p>Start free with your phone's own recognition, or plug in a key for any of these. Model names are editable, so new models work right away.</p>
+  </div>
+  <div class="tags">
+    <div class="etag"><b>Android</b><span>Built-in recognition</span><em>Free &middot; no key</em></div>
+    <div class="etag"><b>Groq</b><span>Very fast Whisper</span><em>Free tier</em></div>
+    <div class="etag"><b>OpenAI</b><span>High accuracy</span><em>Your key</em></div>
+    <div class="etag"><b>Gemini</b><span>Multilingual</span><em>Your key</em></div>
+    <div class="etag"><b>Deepgram</b><span>Nova models</span><em>Your key</em></div>
+    <div class="etag"><b>Custom</b><span>OpenAI-compatible</span><em>Your key</em></div>
   </div>
 </div></section>
 
-<section class="privacy-band"><div class="wrap">
-  <div class="copy">
-    <span class="kicker k-green">Privacy</span>
-    <h2>Your words stay yours</h2>
-    <p>Speaker has no servers, so we never receive your voice, your text or your keys. Your speech goes only to your phone's own service or to the provider you choose.</p>
-    <ul class="checks">
-      <li>No account or sign-up</li>
-      <li>No ads, no analytics</li>
-      <li>Keys stay on your phone</li>
-      <li>You choose every provider</li>
-    </ul>
-    <a class="btn btn-ghost" href="privacy.html">Read the privacy policy</a>
-  </div>
-  <div class="shield">{SHIELD}</div>
-</div></section>
-
-<section class="section"><div class="wrap">
-  <div class="head">
-    <span class="kicker k-pink">Everyday extras</span>
-    <h2>Little things that make it lovely</h2>
-  </div>
-  <div class="grid g3">
-    <div class="card"><div class="icon i-pink">{ic('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>')}</div><h3>Recent dictations</h3><p>Optionally keep your last 50 dictations and their AI versions on the phone, ready to copy.</p></div>
-    <div class="card"><div class="icon i-violet">{ic('<circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>')}</div><h3>Quick menu</h3><p>Long-press the bubble to switch AI rewrite on or off, or jump straight into the app.</p></div>
-    <div class="card"><div class="icon i-orange">{ic('<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h5"/>')}</div><h3>Clipboard backup</h3><p>No text box selected? Your text is safely copied to the clipboard so nothing gets lost.</p></div>
+<section class="section yellow"><div class="wrap">
+  <div class="privacy">
+    <div class="copy">
+      <span class="label">Privacy</span>
+      <h2>Your words.<br><span class="outline">Not ours.</span></h2>
+      <p style="font-size:19px;font-weight:500">Speaker has no servers, so we never receive your voice, your text or your keys. Your speech goes only to your phone's own service or to the provider you choose.</p>
+      <ul><li>No account</li><li>No ads, no analytics</li><li>Keys stay on your phone</li><li>You pick every provider</li></ul>
+      <a class="btn btn-white" href="privacy.html">Read the privacy policy</a>
+    </div>
+    <div class="star-badge"><span>100%<br>yours</span></div>
   </div>
 </div></section>
 
-<section class="cta"><div class="wrap">
-  <div class="box">
-    <h2>Ready to give your thumbs a rest?</h2>
-    <p>Download Speaker free for Android 8.0 and later.</p>
-    <a class="btn btn-lg btn-white" href="download.html">{DL}Download Speaker {VERSION}</a>
+<section class="cta">
+  <span class="shape s-circle s-a"></span><span class="shape s-half s-b"></span><span class="shape s-c"></span>
+  <div class="wrap">
+    <h2>Stop typing.<br><span class="outline">Start talking.</span></h2>
+    <p>Speaker is free for Android 8.0 and later.</p>
+    <a class="btn btn-lime" href="download.html">{DL}Download Speaker {VERSION}</a>
     <p class="fine">Google Play listing coming soon.</p>
   </div>
-</div></section>'''
+</section>'''
 
 # ================================================================ DOWNLOAD
 download = page_hero("Download Speaker", "Free for Android. Open this page on your phone, tap Download, and install it directly.") + f'''
 <div class="wrap">
   <div class="dl">
     <div class="dl-card">
-      <img src="assets/logo.svg" alt="" width="88" height="88">
+      <div class="burst">FREE!</div>
+      <img class="ico" src="assets/logo.svg" alt="" width="104" height="104">
       <h2>Speaker</h2>
       <div class="ver">Version {VERSION} &middot; {SIZE}</div>
       <a class="btn btn-lg" href="{APK}" download>{DL}Download APK</a>
@@ -298,7 +283,7 @@ guide = page_hero("Setup guide", "Everything you need to get Speaker running, fr
 
     <h2 id="battery">Background &amp; battery</h2>
     <p>Some phones close apps in the background to save battery. When that happens, the bubble disappears and Android also switches auto-typing off.</p>
-    <div class="note warm"><b>Realme, Oppo, OnePlus, Xiaomi, Vivo and Samsung:</b> set battery use to <i>Unrestricted</i>, turn on <i>Auto launch</i> or <i>Autostart</i> for Speaker if your phone has it, and lock Speaker in the recent-apps screen.</div>
+    <div class="note warn"><b>Realme, Oppo, OnePlus, Xiaomi, Vivo and Samsung:</b> set battery use to <i>Unrestricted</i>, turn on <i>Auto launch</i> or <i>Autostart</i> for Speaker if your phone has it, and lock Speaker in the recent-apps screen.</div>
 
     <h2 id="engine">Speech engines</h2>
     {table(["Engine", "Key", "Notes"], [

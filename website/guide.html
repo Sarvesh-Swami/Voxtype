@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Speaker Setup Guide</title>
 <meta name="description" content="Set up Speaker: permissions, auto-typing, speech engines, the floating bubble and AI rewrite.">
-<meta name="theme-color" content="#7c4dff">
+<meta name="theme-color" content="#ffd23f">
+<link rel="preload" href="assets/fonts/archivo-black-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/style.css">
 </head>
@@ -17,7 +18,7 @@
   <a class="btn btn-sm" href="download.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Download</a>
 </div></header>
 
-<section class="page-hero"><span class="blob b1"></span><span class="blob b2"></span><div class="wrap">
+<section class="page-hero"><span class="shape s-circle p1"></span><span class="shape s-half p2"></span><span class="shape p3"></span><div class="wrap">
   <h1>Setup guide</h1>
   <p>Everything you need to get Speaker running, from the first launch to AI rewrite.</p>
 </div></section>
@@ -40,7 +41,7 @@
 
     <h2 id="battery">Background &amp; battery</h2>
     <p>Some phones close apps in the background to save battery. When that happens, the bubble disappears and Android also switches auto-typing off.</p>
-    <div class="note warm"><b>Realme, Oppo, OnePlus, Xiaomi, Vivo and Samsung:</b> set battery use to <i>Unrestricted</i>, turn on <i>Auto launch</i> or <i>Autostart</i> for Speaker if your phone has it, and lock Speaker in the recent-apps screen.</div>
+    <div class="note warn"><b>Realme, Oppo, OnePlus, Xiaomi, Vivo and Samsung:</b> set battery use to <i>Unrestricted</i>, turn on <i>Auto launch</i> or <i>Autostart</i> for Speaker if your phone has it, and lock Speaker in the recent-apps screen.</div>
 
     <h2 id="engine">Speech engines</h2>
     <table class="table"><tr><th>Engine</th><th>Key</th><th>Notes</th></tr><tr><td>Android built-in</td><td>Not needed</td><td>Free. Your phone's own speech recognition.</td></tr><tr><td>Groq</td><td>Required</td><td>Fast Whisper models. Free tier available.</td></tr><tr><td>OpenAI</td><td>Required</td><td>Accurate transcription models.</td></tr><tr><td>Google Gemini</td><td>Required</td><td>Gemini models.</td></tr><tr><td>Deepgram</td><td>Required</td><td>Nova models.</td></tr><tr><td>Custom</td><td>Required</td><td>Any OpenAI-compatible server.</td></tr></table>
@@ -66,6 +67,7 @@
 </div></div>
 
 <footer class="footer"><div class="wrap">
+  <div class="giant" aria-hidden="true">SPEAK<span>ER</span></div>
   <div class="cols">
     <div>
       <a class="logo" href="index.html"><img src="assets/logo.svg" alt="" width="36" height="36">Speaker</a>
