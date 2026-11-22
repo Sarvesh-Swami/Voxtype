@@ -19,8 +19,8 @@ import kotlin.math.min
 import kotlin.math.sin
 
 /**
- * The floating bubble's character, on a transparent background: a guy in a baggy green hoodie and loose joggers,
- * seen from the side, leaning back against the screen edge with his legs crossed. Drawn in code in a 70 x 150 box
+ * The floating bubble's character, on a transparent background: a little big-headed guy (chibi proportions: short arms and legs, small hands) in a baggy green hoodie and joggers,
+ * seen from the side, leaning back against the screen edge with his legs crossed. Drawn in code in a 60 x 108 box
  * (faces right, back against the left edge; mirrored when docked on the right). Fabric folds, the bunched hood,
  * ribbed hem and cuffs and swaying drawstrings keep him from looking stiff.
  *
@@ -30,7 +30,7 @@ import kotlin.math.sin
  *                     and the screen light falls on his face. He types while [speaking] or after [nudge].
  *  - [Mode.THINKING]  same pose, hands still, the screen light pulses softly.
  *
- * With system animations off he switches between still poses. Visual prototype: .ai-workspace/scratch/lean-boy2.html
+ * With system animations off he switches between still poses. Visual prototype: .ai-workspace/scratch/chibi-boy.html
  */
 class BoyView(context: Context) : View(context) {
 
@@ -92,28 +92,34 @@ class BoyView(context: Context) : View(context) {
 
     // ------------------------------------------------------------------ shapes (viewport units)
 
-    private val head = svg("M49 7.5 C43.2 7.5 39.2 11.6 39.2 17.4 C39.2 21.8 40.9 25.2 43.6 26.8 C45.2 27.8 46.4 28.4 47.6 28.8 C50 29.6 52.4 29.8 54 29.2 C55.2 28.8 55.8 28.2 55.8 27.4 L56.2 25.8 L57.1 24.6 L56.8 23.6 L57.4 23 L59.3 21.8 C59.4 21.2 58.4 20 57.8 18.8 L58.2 16 C58.2 12.6 56.4 9.4 53.4 8.2 C52 7.7 50.5 7.5 49 7.5 Z")
-    private val faceRim = svg("M57.8 13 L58.2 16 L57.8 18.8 C58.4 20 59.4 21.2 59.3 21.8 L57.4 23 L57.1 24.6 L56.2 25.8 L55.8 27.4")
-    private val hair = svg("M39.4 19.5 C38.6 13 41.5 7.2 48.5 6.2 C53.5 5.6 57.6 7.6 58.6 11 C59 12.4 58.6 13.6 57.6 14 C56.6 12.6 55 12 53.6 12.6 C52 13.2 50.2 12.8 49.2 12 C48.6 14 47.6 15.4 46.2 16 L45.4 21.2 C43.8 21.8 42.4 23 41.8 24.6 C40.6 23.2 39.6 21.4 39.4 19.5 Z")
-    private val ear = svg("M46.6 16.2 C48.6 16.2 49.4 18.4 49 20.6 C48.6 22.6 47.2 23.4 46 22.8 C45 21.4 45 17.6 46.6 16.2 Z")
-    private val neck = svg("M44.4 25 L51.6 27 L52.4 33.4 L45.4 33.6 Z")
-    private val neckline = svg("M46.6 32.4 C49.4 32.6 52.4 33.8 55.2 36.4")
-    private val body = svg("M44 30.5 C40.5 29.5 37 31.5 36.6 35.5 C36.2 38.5 37.4 40.4 38.4 41.6 C37.2 47 36.8 56 38 64 C38.8 70 39.4 74 39.2 78.5 C39.2 80.2 40 81.2 41.4 81.6 L41.8 85.4 C47 86.4 54 86.4 58.8 85.2 L59 81.6 C61.2 80.8 62 78.6 61.6 75.6 C61.2 68 61.4 60 60.4 52 C59.6 45.6 58.6 40 55.6 35.8 C54 33.4 51.6 32.2 49.2 32 C47.6 31.6 45.8 30.8 44 30.5 Z")
-    private val bodyFolds = svg("M49.6 62.4 C53 61.4 57.4 61.4 61 62.8 M49.6 62.4 C49.2 67 49.4 71 50 74.6 M42 76.6 Q46 79.6 50.4 77.6 M51.4 78.2 Q55.4 80.8 59.6 77.8 M44.6 66 Q46.2 72 44.2 78.4 M43.6 47 Q48.6 50.4 54 47.6 M41.2 55 Q44 58 43.4 63")
-    private val bodyLights = svg("M57.6 44 Q60.4 52 59.6 60 M47 78.8 Q51 80.2 55 79.4")
-    private val hood = svg("M44.6 29.6 C40.4 28 36.2 30.4 36 35 C35.8 39.4 39.2 42.4 43.4 41.8 C46.6 41.4 48.6 38 48.8 34.6 C48.9 32.2 47.2 30.4 44.6 29.6 Z")
-    private val hoodFolds = svg("M38 34.6 Q41.6 33 45.6 35.6 M38.6 38.6 Q42 38.4 45.8 39.8")
-    private val hoodLight = svg("M40 31.4 Q43.6 30.6 47 32.6")
-    private val legBack = svg("M41 82 L58 82 C59 90 60.6 98 61.2 106 C61.6 114 63 124 63.8 131 C64 133 63.6 134.6 62.8 135.2 L55.4 135.6 C54.6 134 54.6 132.6 55 131 C53.6 123 52 114 50.6 107 C48.4 98 43.6 91 41 82 Z")
-    private val legBackFolds = svg("M56 127 Q59.4 128.6 63 127.4 M55.4 130.2 Q59 131.8 63.4 130.4 M51.6 110 Q55 112 59.6 110.6")
-    private val legFront = svg("M48 83 L60.4 83 C63.2 91 65.4 98 65.2 105 C64.8 112 59.6 122 54.8 130.4 C54.4 132 53.4 133.2 52.2 133.4 L46.6 132 C46.2 130.6 46.6 129.4 47.4 128.6 C50.6 121 55 112 56.6 105.4 C56.2 97 51.4 90 48 83 Z")
-    private val legFrontFolds = svg("M58 99.6 Q61.6 102.4 65 100.6 M57.4 104.2 Q60.8 106 64.4 105 M50.6 125.6 Q53.2 127.4 55.8 126.4 M49 128.8 Q51.6 130.6 54.4 129.6 M49.4 88 Q53.6 92 58.4 90.6")
-    private val legFrontLights = svg("M62.6 98.8 Q64 102 62.8 106.6 M51 92 Q55 97 55.8 103")
-    private val shoeBack = svg("M55 133 L62.6 133.2 C66.4 133.6 70 135.8 71.2 138.4 L71.4 140.6 L54.6 140.6 L54.4 136 Z")
-    private val shoeBackLine = svg("M59 138.4 Q62.6 136.4 66.6 137.6")
-    private val shoeFront = svg("M45 130.4 L51.6 131.6 C54.8 133.2 57.8 136.6 58.2 139.6 L57.8 141.4 L49.2 141 C46.8 139 45 134.8 45 130.4 Z")
-    private val soleFront = svg("M49.2 141 L57.8 141.4 L58 142.6 L50.2 142.4 Z")
-    private val shoeFrontLine = svg("M48.8 136 Q52.2 134.6 55.4 137.4")
+    private val head = svg("M40 10 C29 10 22.5 18 22.5 28 C22.5 37 28 44.5 37 45.8 C42 46.5 47.5 45.6 51 43.6 C53.4 42.2 54.6 40.6 54.8 39 L55.4 37.6 L56 36 L57.8 34.6 C58 33.6 57 32.6 56.6 31.6 C57.2 28 57.4 25 56.6 21.6 C55 14.6 48.6 10 40 10 Z")
+    private val faceRim = svg("M56.6 21.6 C57.4 25 57.2 28 56.6 31.6 C57 32.6 58 33.6 57.8 34.6 L56 36 L55.4 37.6 L54.8 39 C54.6 40.6 53.4 42.2 51 43.6")
+    private val hair = svg("M23.2 30 C21.4 19 27.6 9.4 40.4 8 C49 7.2 56 10.6 57.6 16.6 C58.2 19 57.6 21 56.2 21.6 C55 19.6 52.6 18.6 50.4 19.4 C48 20.2 45.2 19.6 43.8 18.4 C43 21.4 41.4 23.6 39.2 24.6 L38 31.4 C35.6 32.4 33.6 34.4 32.6 37 C30.6 35.8 28.6 35.4 26.8 36 C24.8 34.6 23.6 32.4 23.2 30 Z")
+    private val hairLight = svg("M30 13.6 Q40 9.2 50 11.4")
+    private val ear = svg("M36.4 27 C39.4 27 40.4 30 40 33 C39.6 35.4 37.6 36.6 36 35.8 C34.6 34 34.6 29 36.4 27 Z")
+    private val eyeWhite = svg("M47.4 30.6 Q50.2 29 52.8 30.2 Q50.4 32.4 47.4 30.6 Z")
+    private val eyeLid = svg("M47.1 30.4 Q50.2 28.4 53 29.9")
+    private val eyeClosed = svg("M47.2 30.9 Q50.2 32.2 52.9 30.6")
+    private val brow = svg("M46.6 26.6 Q50 25.2 53.6 26")
+    private val nostril = svg("M56.6 35.4 Q57.4 36 57.9 35.1")
+    private val neck = svg("M34 42 L42 42.6 L42.6 48.4 L34.6 48.6 Z")
+    private val neckline = svg("M37.6 47.6 C40.6 47.8 43.6 49 46.2 51.4")
+    private val body = svg("M33 46 C28 45.6 24.6 48 24.4 52 C24.2 54.6 25 56.4 26 57.4 C25 62 25 67 25.8 71 L26.2 72.6 L26.4 77 C32 78 40 78 47 76.8 L47.2 72.8 C49.8 72 50.8 70 50.6 67 C50.4 62 50 57.4 48.6 53.4 C47.4 50 45 47.6 41.6 46.8 C38.8 46.2 35.8 46 33 46 Z")
+    private val bodyFolds = svg("M39.4 64.2 C42 63.4 45.6 63.4 48.8 64.6 M39.4 64.2 C39 67 39.2 69.6 39.8 72 M28.4 70.6 Q32 73 36 71.4 M37 72 Q41 74 45.8 71.6 M30.6 61 Q32 65.6 30.4 70.4 M30 55.6 Q35 58.4 40.6 56")
+    private val bodyLights = svg("M46.6 54.6 Q49.4 60 48.8 66")
+    private val hood = svg("M33.4 45 C28.6 43.6 23.6 46.4 23.4 51.4 C23.2 56 27 58.6 31.4 58 C35 57.6 37.2 54 37.4 50.4 C37.4 47.8 35.8 45.8 33.4 45 Z")
+    private val hoodFolds = svg("M25.6 50.6 Q29.6 48.8 34.2 51.4 M26.2 54.6 Q30 54.4 34.4 55.8")
+    private val hoodLight = svg("M27.6 46.6 Q31.6 45.6 35.4 47.8")
+    private val legBack = svg("M28 75 L44 75 C45.6 81 47 88 48.4 95 C48.6 97 48.2 98.6 47.4 99 L41.6 99.4 C41 98 41 96.6 41.4 95.4 C39.8 89 35 82 28 75 Z")
+    private val legBackFolds = svg("M42 94 Q45 95.4 48 94.4 M41.6 96.6 Q44.8 97.8 48 96.8")
+    private val legFront = svg("M34 76 L46 76 C48.8 80 51.2 85 51 89 C50.6 93 46.6 96.4 42 98.6 C41.6 99.4 40.6 99.8 39.6 99.8 L34.4 98.6 C34.2 97.4 34.8 96.4 35.6 96 C39.4 94 43 91.6 43.6 89.4 C43 85 38.6 80 34 76 Z")
+    private val legFrontFolds = svg("M45.4 85.4 Q48.6 87.4 51 86 M44.6 88.6 Q47.4 90 50.4 89.4 M37.4 95 Q39.6 96.4 42 95.6 M36 80 Q40 83 44.6 81.6")
+    private val legFrontLights = svg("M49.6 85 Q51 87.6 49.8 90.6")
+    private val shoeBack = svg("M41 97 L48.6 97.2 C51.8 97.6 55 99.4 56 101.6 L56.2 103.6 L40.6 103.6 L40.4 99.6 Z")
+    private val shoeBackLine = svg("M45 101.6 Q48.4 99.8 52.2 100.8")
+    private val shoeFront = svg("M31.6 95.6 L38 96.6 C41 98 43.6 100.6 44 103 L43.6 104.6 L35.6 104.4 C33.4 102.6 31.6 99.4 31.6 95.6 Z")
+    private val soleFront = svg("M35.6 104.4 L43.6 104.6 L43.8 105.8 L36.6 105.6 Z")
+    private val shoeFrontLine = svg("M35 100.4 Q38.2 99 41.2 101.4")
 
     // ------------------------------------------------------------------ paints
 
@@ -132,15 +138,15 @@ class BoyView(context: Context) : View(context) {
     private fun lin(x0: Float, y0: Float, x1: Float, y1: Float, vararg c: Int) =
         LinearGradient(x0, y0, x1, y1, c, null, Shader.TileMode.CLAMP)
 
-    private val gLegBack = lin(41f, 0f, 63f, 0f, P1, P2)
-    private val gLegFront = lin(47f, 0f, 66f, 0f, P2, P3, P2)
-    private val gShoe = lin(0f, 131f, 0f, 141f, SHOE, SHOE_D)
-    private val gBody = lin(37f, 0f, 62f, 0f, H1, H2, H3)
-    private val gBodyShade = lin(0f, 60f, 0f, 86f, 0x00000000, 0x2E000000)
-    private val gHood = lin(36f, 0f, 49f, 0f, H1, H2)
-    private val gNeck = lin(44f, 0f, 52f, 0f, SKIN_D, SKIN)
-    private val gHead = lin(39f, 0f, 59f, 0f, SKIN_D, SKIN, SKIN_L)
-    private val gHair = lin(0f, 6f, 0f, 24f, HAIR_L, HAIR)
+    private val gLegBack = lin(28f, 0f, 48f, 0f, P1, P2)
+    private val gLegFront = lin(34f, 0f, 52f, 0f, P2, P3, P2)
+    private val gShoe = lin(0f, 96f, 0f, 105f, SHOE, SHOE_D)
+    private val gBody = lin(24f, 0f, 51f, 0f, H1, H2, H3)
+    private val gBodyShade = lin(0f, 62f, 0f, 78f, 0x00000000, 0x2E000000)
+    private val gHood = lin(23f, 0f, 38f, 0f, H1, H2)
+    private val gNeck = lin(34f, 0f, 43f, 0f, SKIN_D, SKIN)
+    private val gHead = lin(22f, 0f, 58f, 0f, SKIN_D, SKIN, SKIN_L)
+    private val gHair = lin(0f, 8f, 0f, 36f, HAIR_L, HAIR)
 
     private fun Canvas.shade(path: Path, shader: Shader, outline: Boolean = true) {
         shaded.shader = shader; drawPath(path, shaded)
@@ -176,16 +182,16 @@ class BoyView(context: Context) : View(context) {
         drawCircle(sx, sy + 0.4f, wS * 0.52f, fill) // rounded shoulder
         save(); clipPath(p)
         stroke.color = SLEEVE_FOLD; stroke.strokeWidth = 0.55f
-        for ((u, k) in arrayOf(0.58f to 0.5f, 0.8f to 0.35f)) {
+        for ((u, k) in arrayOf(0.55f to 0.5f)) {
             val cx = lerp(ex, hx, u); val cy = lerp(ey, hy, u)
             p2.reset()
             p2.moveTo(cx + n2x * wE * 0.55f, cy + n2y * wE * 0.55f)
-            p2.quadTo(cx - (hx - ex) * 0.09f, cy - (hy - ey) * 0.09f, cx - n2x * wE * k, cy - n2y * wE * k)
+            p2.quadTo(cx - (hx - ex) * 0.12f, cy - (hy - ey) * 0.12f, cx - n2x * wE * k, cy - n2y * wE * k)
             drawPath(p2, stroke)
         }
         p2.reset()
         p2.moveTo(ex - nex * wE / 2, ey - ney * wE / 2)
-        p2.quadTo(ex + (n2x - n1x) * 2, ey + (n2y - n1y) * 2, lerp(ex, hx, 0.25f) - n2x * wE * 0.2f, lerp(ey, hy, 0.25f) - n2y * wE * 0.2f)
+        p2.quadTo(ex + (n2x - n1x) * 1.4f, ey + (n2y - n1y) * 1.4f, lerp(ex, hx, 0.3f) - n2x * wE * 0.2f, lerp(ey, hy, 0.3f) - n2y * wE * 0.2f)
         drawPath(p2, stroke)
         val ax = sx + n1x * wS / 2; val ay = sy + n1y * wS / 2
         val bx = ex + nex * wE * 0.54f; val by = ey + ney * wE * 0.54f
@@ -194,8 +200,8 @@ class BoyView(context: Context) : View(context) {
         lines(p2, HOOD_LIGHT, 1f)
         restore()
         stroke.strokeCap = Paint.Cap.BUTT
-        stroke.color = cuff; stroke.strokeWidth = wH * 1.02f
-        drawLine(lerp(ex, hx, 0.9f), lerp(ey, hy, 0.9f), hx, hy, stroke)
+        stroke.color = cuff; stroke.strokeWidth = wH * 1.04f
+        drawLine(lerp(ex, hx, 0.84f), lerp(ey, hy, 0.84f), hx, hy, stroke)
         stroke.strokeCap = Paint.Cap.ROUND
     }
 
@@ -203,9 +209,9 @@ class BoyView(context: Context) : View(context) {
         save(); translate(x, y); rotate(Math.toDegrees(angleRad.toDouble()).toFloat())
         fill.color = color
         rim.strokeWidth = 0.6f
-        drawOval(-1.3f, -2.1f, 4.5f, 2.1f, fill); drawOval(-1.3f, -2.1f, 4.5f, 2.1f, rim)
-        save(); rotate(-28.6f, 0.6f, -1.6f)
-        drawOval(-0.8f, -2.5f, 2f, -0.7f, fill); drawOval(-0.8f, -2.5f, 2f, -0.7f, rim)
+        drawOval(-1.2f, -1.9f, 3.6f, 1.9f, fill); drawOval(-1.2f, -1.9f, 3.6f, 1.9f, rim)
+        save(); rotate(-28.6f, 0.4f, -1.4f)
+        drawOval(-0.7f, -2.2f, 1.5f, -0.6f, fill); drawOval(-0.7f, -2.2f, 1.5f, -0.6f, rim)
         restore()
         rim.strokeWidth = 0.7f
         restore()
@@ -234,7 +240,7 @@ class BoyView(context: Context) : View(context) {
         val beat = (sec % BEAT_S) / BEAT_S
         val nod = sin(beat * 2 * PI).toFloat() * 2.5f * vibeAmt * (1 - hpP)
         val tap = max(0f, sin(beat * 2 * PI).toFloat()) * vibeAmt
-        val headTilt = lerp(nod, 6f, raise)
+        val headTilt = lerp(nod, 5f, raise)
         val flicker = if (typeAmt > 0.05f) 0.92f + 0.08f * sin(sec * 37f) else 1f
         val pulse = if (mode == Mode.THINKING) 0.82f + 0.18f * sin(sec * 2 * PI.toFloat() * 0.8f) else 1f
         val glow = smooth(0.25f, 0.9f, lid) * flicker * pulse
@@ -245,10 +251,10 @@ class BoyView(context: Context) : View(context) {
         canvas.scale(s, s)
         if (faceLeft) canvas.scale(-1f, 1f, VW / 2f, 0f)
         canvas.translate(SHIFT, 0f)
-        canvas.rotate(LEAN, 50f, 142f)
+        canvas.rotate(LEAN, PIVOT_X, PIVOT_Y)
 
         // Laptop frame: hinge position and rotation, lid opening angle.
-        val hx = lerp(52.4f, 84f, raise); val hy = lerp(96f, 58.6f, raise)
+        val hx = lerp(40f, 64f, raise); val hy = lerp(87f, 62.6f, raise)
         val ang = Math.toRadians(lerp(90f, 0f, raise).toDouble())
         val ca = cos(ang).toFloat(); val sa = sin(ang).toFloat()
         fun wx(lx: Float, ly: Float) = hx + lx * ca - ly * sa
@@ -256,25 +262,25 @@ class BoyView(context: Context) : View(context) {
         val th = Math.toRadians(lerp(0f, 106f, lid).toDouble())
         val dX = -cos(th).toFloat(); val dY = -sin(th).toFloat()      // lid direction (local)
         val nX = sin(th).toFloat(); val nY = -cos(th).toFloat()       // lid outer normal (local)
-        val lsx = wx(dX * 11.5f, dY * 11.5f); val lsy = wy(dX * 11.5f, dY * 11.5f) // screen light source
+        val lsx = wx(dX * 8.5f, dY * 8.5f); val lsy = wy(dX * 8.5f, dY * 8.5f) // screen light source
 
         // Far arm (behind the body): hand in the hoodie pocket, then on the keyboard.
-        val tapY = typeAmt * max(0f, sin(sec * 44f)) * 1.6f
-        val sfx = 45f; val sfy = 40f
-        val hfx = lerp(55f, 73f, raise); val hfy = lerp(69f, 55.2f - tapY, raise)
-        val (efx, efy) = ik(sfx, sfy, hfx, hfy, 15.5f, 15.5f)
-        canvas.sleeve(sfx, sfy, efx, efy, hfx, hfy, 8f, 7.4f, 5.6f, H1, CUFF_FAR)
+        val tapY = typeAmt * max(0f, sin(sec * 44f)) * 1.3f
+        val sfx = 34f; val sfy = 53.5f
+        val hfx = lerp(42f, 55.5f, raise); val hfy = lerp(67f, 60f - tapY, raise)
+        val (efx, efy) = ik(sfx, sfy, hfx, hfy, 9.4f, 9.4f)
+        canvas.sleeve(sfx, sfy, efx, efy, hfx, hfy, 7.4f, 7f, 5.8f, H1, CUFF_FAR)
 
         // Joggers: back leg and shoe, then the front leg crossing over it.
         canvas.shade(legBack, gLegBack)
-        canvas.folds(legBack, legBackFolds, null, PANT_FOLD, PANT_LIGHT, 0.7f)
+        canvas.folds(legBack, legBackFolds, null, PANT_FOLD, PANT_LIGHT, 0.6f)
         canvas.shade(shoeBack, gShoe)
-        fill.color = SOLE; canvas.drawRect(54.2f, 140.2f, 71.6f, 142.3f, fill)
+        fill.color = SOLE; canvas.drawRect(40.2f, 103.2f, 56.4f, 105.4f, fill)
         canvas.lines(shoeBackLine, ACCENT, 1f)
         canvas.shade(legFront, gLegFront)
-        canvas.folds(legFront, legFrontFolds, legFrontLights, PANT_FOLD, PANT_LIGHT)
+        canvas.folds(legFront, legFrontFolds, legFrontLights, PANT_FOLD, PANT_LIGHT, 0.55f)
         canvas.save()
-        canvas.rotate(-tap * 6f, 57.6f, 141.4f) // heel lifts on the beat, toe stays down
+        canvas.rotate(-tap * 7f, 43.6f, 104.8f) // heel lifts on the beat, toe stays down
         canvas.shade(shoeFront, gShoe)
         fill.color = SOLE; canvas.drawPath(soleFront, fill)
         canvas.lines(shoeFrontLine, ACCENT, 1f)
@@ -283,9 +289,9 @@ class BoyView(context: Context) : View(context) {
         // Hoodie body: shading, ribbed hem, pocket and drape folds.
         canvas.shade(body, gBody)
         canvas.save(); canvas.clipPath(body)
-        shaded.shader = gBodyShade; canvas.drawRect(30f, 60f, 70f, 90f, shaded)
-        fill.color = RIB; canvas.drawRect(38f, 81.4f, 62f, 86.4f, fill)
-        for (i in 0 until 8) canvas.drawLine(41f + i * 2.4f, 81.6f, 41.2f + i * 2.4f, 86f, stroke.apply { color = 0x40000000; strokeWidth = 0.35f })
+        shaded.shader = gBodyShade; canvas.drawRect(20f, 60f, 55f, 80f, shaded)
+        fill.color = RIB; canvas.drawRect(24f, 72.6f, 50f, 77.6f, fill)
+        for (i in 0 until 8) canvas.drawLine(28f + i * 2.4f, 72.8f, 28.2f + i * 2.4f, 77.4f, stroke.apply { color = 0x40000000; strokeWidth = 0.35f })
         canvas.lines(bodyFolds, HOOD_FOLD, 0.65f)
         canvas.lines(bodyLights, HOOD_LIGHT, 1.1f)
         canvas.restore()
@@ -294,87 +300,88 @@ class BoyView(context: Context) : View(context) {
         canvas.lines(hoodFolds, HOOD_FOLD, 0.65f)
         canvas.lines(hoodLight, HOOD_LIGHT, 0.8f)
         canvas.shade(neck, gNeck, outline = false)
-        canvas.lines(neckline, H1, 1.6f)
+        canvas.lines(neckline, H1, 1.5f)
 
         // Head.
         canvas.save()
-        canvas.rotate(headTilt, 47.5f, 28f)
+        canvas.rotate(headTilt, HEAD_PX, HEAD_PY)
         canvas.shade(head, gHead)
         canvas.save(); canvas.clipPath(head)
-        fill.color = 0x40784629; canvas.save(); canvas.rotate(-17f, 46f, 26f); canvas.drawOval(39f, 22.8f, 53f, 29.2f, fill); canvas.restore()
+        fill.color = 0x29784629; canvas.save(); canvas.rotate(-20f, 33.4f, 43.6f); canvas.drawOval(26f, 40.8f, 40.8f, 46.4f, fill); canvas.restore()
+        fill.color = 0x2EE6786E; canvas.drawCircle(49.6f, 37.4f, 3.2f, fill)
         canvas.restore()
         fill.color = SKIN_D; canvas.drawPath(ear, fill); canvas.drawPath(ear, rim)
         drawFace(canvas, t, q, raise)
         canvas.shade(hair, gHair)
-        p.reset(); p.moveTo(44f, 9.4f); p.quadTo(50f, 6.8f, 55.6f, 8.8f)
-        canvas.lines(p, 0x1FFFFFFF, 0.8f)
+        canvas.lines(hairLight, 0x21FFFFFF, 1f)
         if (glow > 0.01f) {
             canvas.save(); canvas.clipPath(head)
-            shaded.shader = RadialGradient(lsx, lsy, 27f,
-                intArrayOf(light(0.95f * glow), light2(0.55f * glow), light2(0f)), floatArrayOf(0f, 0.62f, 1f), Shader.TileMode.CLAMP)
-            canvas.drawRect(30f, 0f, 70f, 40f, shaded)
-            canvas.lines(faceRim, rimLight(0.8f * glow), 1.3f)
+            shaded.shader = RadialGradient(lsx, lsy, 32f,
+                intArrayOf(light(0.8f * glow), light2(0.42f * glow), light2(0f)), floatArrayOf(0f, 0.6f, 1f), Shader.TileMode.CLAMP)
+            canvas.drawRect(20f, 5f, 60f, 50f, shaded)
+            canvas.lines(faceRim, rimLight(0.55f * glow), 1.2f)
             canvas.restore()
         }
         canvas.restore()
 
         // Headphones: on his head, or resting around the neck.
-        val cupX = lerp(47.2f, 47.4f, hpP); val cupY = lerp(19.6f, 33.6f, hpP)
+        val cupX = lerp(36.4f, 36.8f, hpP); val cupY = lerp(31.4f, 48.8f, hpP)
         canvas.save()
         p.reset()
         if (hpP < 0.5f) {
-            canvas.rotate(headTilt, 47.5f, 28f)
-            p.moveTo(46.8f, 15.4f); p.cubicTo(45.6f, 9.6f, 47.4f, 4.8f, 51.4f, 4.4f)
+            canvas.rotate(headTilt, HEAD_PX, HEAD_PY)
+            p.moveTo(35.4f, 25.4f); p.cubicTo(33.4f, 16f, 36.8f, 8.6f, 44.4f, 7.4f)
         } else {
-            p.moveTo(cupX - 1f, cupY - 2f); p.cubicTo(43.4f, 32.4f, 42f, 34.6f, 43.6f, 36.6f)
+            p.moveTo(cupX - 1f, cupY - 2.4f); p.cubicTo(31.6f, 47f, 30f, 49.6f, 31.6f, 52f)
         }
-        canvas.lines(p, RIM, 2.6f)
-        canvas.lines(p, HP, 1.8f)
+        canvas.lines(p, RIM, 3f)
+        canvas.lines(p, HP, 2.2f)
         canvas.restore()
         canvas.save()
+        if (hpP < 0.5f) canvas.rotate(headTilt * (1 - hpP * 2), HEAD_PX, HEAD_PY)
         canvas.translate(cupX, cupY)
         canvas.rotate(lerp(0f, -50f, hpP))
-        fill.color = HP; canvas.drawOval(-3.3f, -4.5f, 3.3f, 4.5f, fill)
-        rim.strokeWidth = 0.6f; canvas.drawOval(-3.3f, -4.5f, 3.3f, 4.5f, rim); rim.strokeWidth = 0.7f
-        fill.color = HP_L; canvas.drawOval(-1.1f, -3.2f, 2.1f, 2f, fill)
-        fill.color = ACCENT; canvas.drawCircle(0.4f, -0.4f, 0.7f, fill)
+        fill.color = HP; canvas.drawOval(-4.2f, -5.6f, 4.2f, 5.6f, fill)
+        rim.strokeWidth = 0.6f; canvas.drawOval(-4.2f, -5.6f, 4.2f, 5.6f, rim); rim.strokeWidth = 0.7f
+        fill.color = HP_L; canvas.drawOval(-1.4f, -4f, 2.6f, 2.4f, fill)
+        fill.color = ACCENT; canvas.drawCircle(0.5f, -0.5f, 0.9f, fill)
         canvas.restore()
 
         // Drawstrings: swing with the beat, swept back as the laptop comes up.
-        for ((ax, len, ph) in arrayOf(Triple(54f, 13f, 0f), Triple(55.8f, 11.5f, 0.8f))) {
-            val a = Math.toRadians((sin(sec * 2 * PI / BEAT_S + ph) * vibeAmt * 5 - raise * 8).toDouble())
-            val ex = ax + sin(a).toFloat() * len; val ey = 36.6f + cos(a).toFloat() * len
-            p.reset(); p.moveTo(ax, 36.6f); p.quadTo(ax + 0.6f, 36.6f + len * 0.5f, ex, ey)
+        for ((ax, len, ph) in arrayOf(Triple(43.4f, 8f, 0f), Triple(45f, 7f, 0.8f))) {
+            val a = Math.toRadians((sin(sec * 2 * PI / BEAT_S + ph) * vibeAmt * 6 - raise * 8).toDouble())
+            val ex = ax + sin(a).toFloat() * len; val ey = 51.4f + cos(a).toFloat() * len
+            p.reset(); p.moveTo(ax, 51.4f); p.quadTo(ax + 0.5f, 51.4f + len * 0.5f, ex, ey)
             canvas.lines(p, STRING, 0.7f)
             stroke.color = AGLET; stroke.strokeWidth = 1.1f
-            canvas.drawLine(ex, ey, ex + sin(a).toFloat() * 1.6f, ey + cos(a).toFloat() * 1.6f, stroke)
+            canvas.drawLine(ex, ey, ex + sin(a).toFloat() * 1.4f, ey + cos(a).toFloat() * 1.4f, stroke)
         }
 
         // Laptop base, then the lid (only its outside is ever visible).
-        quad(canvas, wx(0f, 0f), wy(0f, 0f), wx(-24f, 0f), wy(-24f, 0f), wx(-24f, 1.9f), wy(-24f, 1.9f), wx(0f, 1.9f), wy(0f, 1.9f),
-            lin(wx(0f, 0f), wy(0f, 0f), wx(0f, 1.9f), wy(0f, 1.9f), LAP1, LAP2))
-        quad(canvas, wx(0f, 0f), wy(0f, 0f), wx(dX * 23f, dY * 23f), wy(dX * 23f, dY * 23f),
-            wx(dX * 23f + nX * 1.4f, dY * 23f + nY * 1.4f), wy(dX * 23f + nX * 1.4f, dY * 23f + nY * 1.4f),
-            wx(nX * 1.4f, nY * 1.4f), wy(nX * 1.4f, nY * 1.4f), null, LAP2)
+        quad(canvas, wx(0f, 0f), wy(0f, 0f), wx(-18f, 0f), wy(-18f, 0f), wx(-18f, 1.7f), wy(-18f, 1.7f), wx(0f, 1.7f), wy(0f, 1.7f),
+            lin(wx(0f, 0f), wy(0f, 0f), wx(0f, 1.7f), wy(0f, 1.7f), LAP1, LAP2))
+        quad(canvas, wx(0f, 0f), wy(0f, 0f), wx(dX * 17f, dY * 17f), wy(dX * 17f, dY * 17f),
+            wx(dX * 17f + nX * 1.2f, dY * 17f + nY * 1.2f), wy(dX * 17f + nX * 1.2f, dY * 17f + nY * 1.2f),
+            wx(nX * 1.2f, nY * 1.2f), wy(nX * 1.2f, nY * 1.2f), null, LAP2)
         if (glow > 0.01f) {
-            val tx = wx(dX * 22f, dY * 22f); val ty = wy(dX * 22f, dY * 22f)
+            val tx = wx(dX * 16f, dY * 16f); val ty = wy(dX * 16f, dY * 16f)
             val bx = wx(dX * 2f, dY * 2f); val by = wy(dX * 2f, dY * 2f)
-            shaded.shader = LinearGradient(lsx, lsy, 57f, 20f, light2(0.16f * glow), light2(0f), Shader.TileMode.CLAMP)
-            p.reset(); p.moveTo(tx, ty); p.lineTo(58f, 13f); p.lineTo(58f, 28f); p.lineTo(bx, by); p.close()
+            shaded.shader = LinearGradient(lsx, lsy, 54f, 32f, light2(0.16f * glow), light2(0f), Shader.TileMode.CLAMP)
+            p.reset(); p.moveTo(tx, ty); p.lineTo(56.6f, 24f); p.lineTo(56f, 40f); p.lineTo(bx, by); p.close()
             canvas.drawPath(p, shaded)
         }
 
         // Near arm holds the laptop; then both hands.
-        val snx = 48.4f; val sny = 40.4f
-        val hnx = lerp(51.6f, 63.4f, raise); val hny = lerp(75f, 60.6f, raise)
-        val (enx, eny) = ik(snx, sny, hnx, hny, 16.4f, 15.6f)
-        canvas.sleeve(snx, sny, enx, eny, hnx, hny, 9f, 8.2f, 6f, H2, RIB)
+        val snx = 37f; val sny = 54.4f
+        val hnx = lerp(39.4f, 48f, raise); val hny = lerp(72f, 64.4f, raise)
+        val (enx, eny) = ik(snx, sny, hnx, hny, 9.6f, 9.4f)
+        canvas.sleeve(snx, sny, enx, eny, hnx, hny, 8.2f, 7.8f, 6.4f, H2, RIB)
         canvas.hand(hnx, hny, lerp(1.4f, 0.1f, raise), SKIN)
         if (raise > 0.05f) canvas.hand(hfx, hfy, 0.15f, SKIN_D)
         if (glow > 0.01f) {
             canvas.save(); canvas.clipPath(body)
-            shaded.shader = RadialGradient(lsx, lsy, 24f, light(0.4f * glow), light(0f), Shader.TileMode.CLAMP)
-            canvas.drawRect(30f, 25f, 70f, 85f, shaded)
+            shaded.shader = RadialGradient(lsx, lsy, 22f, light(0.4f * glow), light(0f), Shader.TileMode.CLAMP)
+            canvas.drawRect(20f, 40f, 60f, 80f, shaded)
             canvas.restore()
         }
         canvas.restore()
@@ -393,20 +400,16 @@ class BoyView(context: Context) : View(context) {
         val blink = mode != Mode.VIBING && (t - start) % 3400 < 120
         val open = q > 0.12f && !blink
         if (open) {
-            p.reset(); p.moveTo(53.4f, 17.6f); p.quadTo(55.1f, 16.7f, 56.7f, 17.4f); p.quadTo(55.2f, 18.5f, 53.4f, 17.6f)
-            fill.color = EYE_WHITE; c.drawPath(p, fill)
-            fill.color = IRIS; c.drawCircle(55.7f, 17.75f + raise * 0.25f, 0.9f, fill)
-            p.reset(); p.moveTo(53.2f, 17.5f); p.quadTo(55.1f, 16.3f, 56.9f, 17.2f)
-            c.lines(p, IRIS, 0.75f)
+            fill.color = EYE_WHITE; c.drawPath(eyeWhite, fill)
+            fill.color = IRIS; c.drawCircle(51.2f, 30.9f + raise * 0.35f, 1.45f, fill)
+            fill.color = 0xFFFFFFFF.toInt(); c.drawCircle(51.7f, 30.3f, 0.45f, fill)
+            c.lines(eyeLid, IRIS, 0.95f)
         } else {
-            p.reset(); p.moveTo(53.3f, 17.7f); p.quadTo(55.1f, 18.6f, 56.8f, 17.6f)
-            c.lines(p, IRIS, 0.8f)
+            c.lines(eyeClosed, IRIS, 0.95f)
         }
-        p.reset(); p.moveTo(52.8f, 15.3f); p.quadTo(55f, 14.4f, 57.5f, 15f)
-        c.lines(p, HAIR, 1.05f)
-        stroke.color = LIPS; stroke.strokeWidth = 0.65f; c.drawLine(55.3f, 25.7f, 56.7f, 25.4f, stroke)
-        p.reset(); p.moveTo(57.2f, 22.6f); p.quadTo(57.9f, 23.2f, 58.4f, 22.4f)
-        c.lines(p, NOSTRIL, 0.5f)
+        c.lines(brow, HAIR, 1.3f)
+        stroke.color = LIPS; stroke.strokeWidth = 0.7f; c.drawLine(52.6f, 40.6f, 54.6f, 40.2f, stroke)
+        c.lines(nostril, NOSTRIL, 0.55f)
     }
 
     /** Smooth frames only while something moves; slow ticks for blinking; nothing at rest. */
@@ -467,10 +470,14 @@ class BoyView(context: Context) : View(context) {
     }
 
     private companion object {
-        const val VW = 70f
-        const val VH = 150f
-        const val LEAN = -6f         // degrees: top leans back against the edge
-        const val SHIFT = -17f       // moves his back flush with the edge
+        const val VW = 60f
+        const val VH = 108f
+        const val LEAN = -5f         // degrees: top leans back against the edge
+        const val SHIFT = -13f       // moves his back flush with the edge
+        const val PIVOT_X = 44f      // lean pivot at his feet
+        const val PIVOT_Y = 105f
+        const val HEAD_PX = 37f      // head tilt pivot (neck)
+        const val HEAD_PY = 46f
         const val OPEN_MS = 1400L
         const val CLOSE_MS = 1100L
         const val NUDGE_MS = 700L

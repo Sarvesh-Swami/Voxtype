@@ -44,8 +44,8 @@ class BubbleService : Service(), DictationEngine.Listener {
         private const val NOTIF_ID = 1
         private const val CUSTOM_QUIT = "quit"
         /** Size of the floating boy (transparent window; he stands inside it). */
-        private const val BUBBLE_W_DP = 52
-        private const val BUBBLE_H_DP = 112
+        private const val BUBBLE_W_DP = 54
+        private const val BUBBLE_H_DP = 96
 
         /** Re-applies bubble/island settings if the service is running. */
         fun refresh(ctx: Context) {
