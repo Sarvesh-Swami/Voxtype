@@ -5,52 +5,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Speaker Privacy Policy</title>
 <meta name="description" content="Privacy policy for Speaker, the voice typing app for Android.">
+<meta name="theme-color" content="#7c4dff">
 <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/style.css">
 </head>
 <body>
 
-<nav class="desk" aria-label="Shortcuts">
-  <a href="downloads/Speaker-1.0.0.apk" download><img src="assets/logo.svg" alt=""><span>Speaker-1.0.0.apk</span></a>
-  <a href="guide.html"><img src="assets/ic-help.svg" alt=""><span>Setup Guide</span></a>
-  <a href="faq.html"><img src="assets/ic-folder.svg" alt=""><span>FAQ</span></a>
-  <a href="privacy.html"><img src="assets/ic-shield.svg" alt=""><span>Privacy Policy</span></a>
-  <a href="mailto:[CONTACT EMAIL]"><img src="assets/ic-mail.svg" alt=""><span>Contact</span></a>
-</nav>
+<header class="header"><div class="wrap">
+  <a class="logo" href="index.html"><img src="assets/logo.svg" alt="" width="36" height="36">Speaker</a>
+  <ul class="nav"><li><a href="index.html">Home</a></li><li><a href="index.html#features">Features</a></li><li><a href="download.html">Download</a></li><li><a href="guide.html">Setup Guide</a></li><li><a href="faq.html">FAQ</a></li><li><a href="privacy.html" aria-current="page">Privacy</a></li></ul>
+  <a class="btn btn-sm" href="download.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Download</a>
+</div></header>
 
-<div class="window">
-  <div class="titlebar">
-    <img src="assets/logo.svg" alt="">
-    <h1>Speaker - Privacy Policy</h1>
-    <div class="ctl" aria-hidden="true"><span class="min"></span><span class="max"></span><span class="close"></span></div>
-  </div>
-  <ul class="menubar"><li><a href="index.html">Welcome</a></li><li><a href="download.html">Download</a></li><li><a href="guide.html">Setup Guide</a></li><li><a href="faq.html">FAQ</a></li><li><a href="privacy.html" aria-current="page">Privacy</a></li><li class="brand-mark">Speaker 1.0.0</li></ul>
-  <div class="toolbar">
-    <a class="tb" href="index.html"><img src="assets/logo.svg" alt="">Home</a>
-    <a class="tb" href="download.html"><img src="assets/ic-download.svg" alt="">Download</a>
-    <span class="tb-sep"></span>
-    <a class="tb" href="guide.html"><img src="assets/ic-help.svg" alt="">Help</a>
-    <a class="tb" href="faq.html"><img src="assets/ic-folder.svg" alt="">FAQ</a>
-    <a class="tb" href="privacy.html"><img src="assets/ic-shield.svg" alt="">Privacy</a>
-  </div>
-  <div class="addressbar">Address
-    <div class="address"><img src="assets/logo.svg" alt="">Speaker &gt; Privacy Policy</div>
-    <a class="go" href="privacy.html"><i></i>Go</a>
-  </div>
-  <div class="client">
-    <aside class="taskpane">
-      <div class="tp special"><div class="tp-h">In Short</div><div class="tp-b"><ul><li>&#10004; No account</li><li>&#10004; No ads or analytics</li><li>&#10004; No servers of ours</li><li>&#10004; Keys stay on your phone</li><li>&#10004; You choose every provider</li></ul></div></div>
-      <div class="tp"><div class="tp-h">Other Places</div><div class="tp-b"><ul><li><a href="index.html"><img src="assets/logo.svg" alt="">Welcome</a></li><li><a href="download.html"><img src="assets/ic-download.svg" alt="">Download</a></li><li><a href="guide.html"><img src="assets/ic-help.svg" alt="">Setup Guide</a></li><li><a href="faq.html"><img src="assets/ic-folder.svg" alt="">FAQ</a></li><li><a href="privacy.html"><img src="assets/ic-shield.svg" alt="">Privacy Policy</a></li></ul></div></div>
-    </aside>
-    <main class="content">
-      <h2 class="big">Privacy Policy</h2>
+<section class="page-hero"><span class="blob b1"></span><span class="blob b2"></span><div class="wrap">
+  <h1>Privacy policy</h1>
+  <p>Short version: no account, no ads, no analytics, and we never receive your voice, text or keys.</p>
+</div></section>
+<div class="wrap"><div class="layout">
+  <aside class="side"><div class="box"><h4>Privacy</h4><ul><li><a href="privacy.html">Privacy policy</a></li><li><a href="faq.html#costs">Privacy FAQ</a></li><li><a href="mailto:[CONTACT EMAIL]">Contact us</a></li></ul></div></aside>
+  <article class="article">
 <p class="muted">Effective date: [DATE]. App: Speaker (Android, package <code>app.speaker.dictate</code>). Developer: [DEVELOPER NAME], contact: [CONTACT EMAIL].</p>
 
-<div class="group">Summary</div>
+<h2>Summary</h2>
 <p>Speaker is a voice-typing app. It has no account, no servers, no ads and no analytics. The developer does not receive, collect or store any of your data. What you say is processed either by your phone's own speech service or by an AI provider that <em>you</em> choose and connect with <em>your own</em> API key.</p>
 
-<div class="group">What the app handles and where it goes</div>
-<table class="details">
+<h2>What the app handles and where it goes</h2>
+<table class="table">
 <tr><th>Data</th><th>Why</th><th>Where it goes</th></tr>
 <tr><td>Microphone audio</td><td>To turn your speech into text, only while you are dictating.</td><td><strong>Built-in engine:</strong> your phone's speech recognition service (provided by Android / Google on most phones), on the device where supported. <strong>API engine (optional):</strong> each spoken phrase is sent over HTTPS directly from your phone to the provider you selected (OpenAI, Groq, Google Gemini, Deepgram, or a custom OpenAI-compatible URL you enter). Audio is not stored by the app; temporary phrase files are deleted after sending.</td></tr>
 <tr><td>Transcribed text</td><td>To type it into the text field you are using.</td><td>Stays on your phone. If you turn on <strong>AI rewrite</strong>, your words are first collected on your phone, where you can edit them; when you tap Send, that text and your prompt are sent to the AI provider you selected (OpenAI, Anthropic, Google Gemini, Groq, or your custom URL).</td></tr>
@@ -60,7 +40,7 @@
 </table>
 <p>Providers process the data you send them under their own terms and privacy policies. Please review the policy of any provider you connect.</p>
 
-<div class="group">Permissions</div>
+<h2>Permissions</h2>
 <ul>
 <li><strong>Microphone</strong>: hears you while you dictate. A notification is shown whenever the dictation service is running.</li>
 <li><strong>Accessibility service (“Speaker auto-type”)</strong>: types your dictated words into the focused text field in any app, the way a keyboard does. It is not used to read, collect, store or share screen content, passwords or anything you type, and no data from it leaves your phone. You turn it on yourself after an in-app explanation, and can turn it off any time in Settings → Accessibility.</li>
@@ -69,61 +49,38 @@
 <li><strong>Internet</strong>: only used to reach the API providers you configure.</li>
 </ul>
 
-<div class="group">This website</div>
+<h2>This website</h2>
 <p>This website uses no cookies, analytics, advertising or third-party scripts. Like any website, our hosting provider may keep standard server logs (such as IP address, browser type and the pages or files requested) for security and to keep the site running.</p>
 
-<div class="group">Sharing and selling</div>
+<h2>Sharing and selling</h2>
 <p>The developer does not sell or share your data and has no access to it. Data only leaves your phone to go to the speech or AI providers you choose, as described above.</p>
 
-<div class="group">Children</div>
+<h2>Children</h2>
 <p>Speaker is not directed at children under 13.</p>
 
-<div class="group">Your choices</div>
+<h2>Your choices</h2>
 <p>Use the built-in engine and leave AI rewrite off to avoid sending anything to third-party AI providers. Delete your API keys in the app, or uninstall the app to remove all of its data from your phone.</p>
 
-<div class="group">Changes</div>
+<h2>Changes</h2>
 <p>If this policy changes, the updated version will be posted on this page with a new effective date.</p>
 
-<div class="group">Contact</div>
+<h2>Contact</h2>
 <p>[CONTACT EMAIL]</p>
-    </main>
-  </div>
-  <div class="statusbar"><span>Done</span><span>&copy; 2026 [DEVELOPER NAME]</span><span><img src="assets/ic-shield.svg" alt="">No tracking</span></div>
-</div>
+  </article>
+</div></div>
 
-<div class="taskbar">
-  <details class="start">
-    <summary><img src="assets/logo.svg" alt="">start</summary>
-    <div class="startmenu">
-      <div class="sm-head"><img src="assets/logo.svg" alt="">Speaker</div>
-      <div class="sm-cols">
-        <div class="sm-left">
-          <a href="downloads/Speaker-1.0.0.apk" download><img src="assets/ic-download.svg" alt=""><span><b>Download Speaker</b><small>Version 1.0.0 &middot; 137 KB</small></span></a>
-          <a href="guide.html"><img src="assets/ic-help.svg" alt=""><span><b>Setup Guide</b><small>Get started step by step</small></span></a>
-          <a href="faq.html"><img src="assets/ic-folder.svg" alt=""><span><b>FAQ</b><small>Answers to common questions</small></span></a>
-          <a href="index.html#features"><img src="assets/ic-spark.svg" alt=""><span><b>Features</b><small>What Speaker can do</small></span></a>
-        </div>
-        <div class="sm-right">
-          <a href="index.html"><img src="assets/logo.svg" alt="">Welcome</a>
-          <a href="download.html#releases"><img src="assets/ic-doc.svg" alt="">Release Notes</a>
-          <a href="download.html#requirements"><img src="assets/ic-phone.svg" alt="">Requirements</a>
-          <a href="privacy.html"><img src="assets/ic-shield.svg" alt="">Privacy Policy</a>
-          <a href="mailto:[CONTACT EMAIL]"><img src="assets/ic-mail.svg" alt="">Contact</a>
-        </div>
-      </div>
-      <div class="sm-foot">Speaker for Android</div>
+<footer class="footer"><div class="wrap">
+  <div class="cols">
+    <div>
+      <a class="logo" href="index.html"><img src="assets/logo.svg" alt="" width="36" height="36">Speaker</a>
+      <p>Voice typing for every Android app. Speak naturally and your words appear wherever you're writing.</p>
     </div>
-  </details>
-  <div class="tasks"><a class="task" href="index.html"><img src="assets/logo.svg" alt="">Welcome</a><a class="task" href="download.html"><img src="assets/ic-download.svg" alt="">Download</a><a class="task" href="guide.html"><img src="assets/ic-help.svg" alt="">Setup Guide</a><a class="task" href="faq.html"><img src="assets/ic-doc.svg" alt="">FAQ</a><a class="task on" href="privacy.html"><img src="assets/ic-shield.svg" alt="">Privacy</a></div>
-  <div class="tray"><img src="assets/ic-shield.svg" alt=""><img src="assets/logo.svg" alt=""><span id="clock">12:00 PM</span></div>
-</div>
-<script>
-(function () {
-  var c = document.getElementById("clock");
-  function t() { var d = new Date(), h = d.getHours(), m = d.getMinutes();
-    c.textContent = ((h % 12) || 12) + ":" + (m < 10 ? "0" : "") + m + (h < 12 ? " AM" : " PM"); }
-  t(); setInterval(t, 15000);
-})();
-</script>
+    <div><h4>Product</h4><ul><li><a href="index.html#features">Features</a></li><li><a href="index.html#ai">AI rewrite</a></li><li><a href="download.html">Download</a></li><li><a href="download.html#releases">Release notes</a></li></ul></div>
+    <div><h4>Help</h4><ul><li><a href="guide.html">Setup guide</a></li><li><a href="faq.html">FAQ</a></li><li><a href="mailto:[CONTACT EMAIL]">Contact us</a></li></ul></div>
+    <div><h4>Legal</h4><ul><li><a href="privacy.html">Privacy policy</a></li></ul></div>
+  </div>
+  <div class="base"><span>&copy; 2026 [DEVELOPER NAME]. All rights reserved.</span><span>Android is a trademark of Google LLC.</span></div>
+</div></footer>
+
 </body>
 </html>
