@@ -356,7 +356,7 @@ class MainActivity : Activity(), DictationEngine.Listener {
                 ui("Prompt tab: Custom")
                 if (selected != custom) { setBox(""); nameField.setText("") }
                 select(custom)
-                field.requestFocus()
+                showKeyboard(field)
             }), tabParams())
             prefs.savedPrompts.forEach { item ->
                 tabs.addView(tab("★ ${item.name}", item.name, {
@@ -391,8 +391,8 @@ class MainActivity : Activity(), DictationEngine.Listener {
             val text = field.text.toString().trim()
             val name = nameField.text.toString().trim()
             when {
-                text.isEmpty() -> { toast("Type your prompt in the box first"); field.requestFocus() }
-                name.isEmpty() -> { toast("Give it a name so you can find it later"); nameField.requestFocus() }
+                text.isEmpty() -> { toast("Type your prompt in the box first"); showKeyboard(field) }
+                name.isEmpty() -> { toast("Give it a name so you can find it later"); showKeyboard(nameField) }
                 Prompts.BUILT_IN.any { it.name.equals(name, ignoreCase = true) } || name.equals(custom, ignoreCase = true) ->
                     toast("“$name” is already taken by a preset. Pick another name")
                 else -> {
@@ -450,6 +450,19 @@ class MainActivity : Activity(), DictationEngine.Listener {
         // Let the keyboard push the dialog up instead of covering the Name field and Save button.
         dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         dialog.show()
+        // AlertDialog blocks the keyboard if it decides the custom view has no text box; make sure typing works.
+        dialog.window?.clearFlags(
+            android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or android.view.WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM
+        )
+    }
+
+    /** Focuses [v] and opens the keyboard for it (after layout, so it works inside dialogs too). */
+    private fun showKeyboard(v: View) {
+        v.requestFocus()
+        v.post {
+            getSystemService(android.view.inputmethod.InputMethodManager::class.java)
+                .showSoftInput(v, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        }
     }
 
     /** Long-press menu for a saved prompt: rename or delete. */

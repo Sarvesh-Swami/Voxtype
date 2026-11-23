@@ -56,7 +56,8 @@
         <item name="android:textColor">@color/text_secondary</item>
     </style>
 
-    <style name="Field">
+    <!-- Parent = the standard text box, so EditTexts made in code with this style are focusable and open the keyboard. -->
+    <style name="Field" parent="android:Widget.Material.Light.EditText">
         <item name="android:importantForAutofill">no</item>
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
