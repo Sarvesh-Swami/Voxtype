@@ -74,6 +74,22 @@ class Prefs(context: Context) {
         get() = str("polish_prompt", DEFAULT_POLISH_PROMPT).ifBlank { DEFAULT_POLISH_PROMPT }
         set(v) = put("polish_prompt", v)
 
+    /** The user's own named AI rewrite prompts (see [Prompts]), stored as a JSON array. */
+    var savedPrompts: List<PromptItem>
+        get() = runCatching {
+            val arr = org.json.JSONArray(str("saved_prompts", "[]"))
+            (0 until arr.length()).mapNotNull { i ->
+                val o = arr.optJSONObject(i) ?: return@mapNotNull null
+                val name = o.optString("name").trim(); val text = o.optString("text").trim()
+                if (name.isEmpty() || text.isEmpty()) null else PromptItem(name, text, false)
+            }
+        }.getOrDefault(emptyList())
+        set(v) {
+            val arr = org.json.JSONArray()
+            v.forEach { arr.put(org.json.JSONObject().put("name", it.name).put("text", it.text)) }
+            put("saved_prompts", arr.toString())
+        }
+
     var polishEnabled: Boolean
         get() = sp.getBoolean("polish_enabled", false)
         set(v) = sp.edit().putBoolean("polish_enabled", v).apply()

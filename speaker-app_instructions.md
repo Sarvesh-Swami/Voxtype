@@ -70,7 +70,7 @@ the same as `docs/privacy-policy.html` here.
   tapping the text makes the overlay focusable for the keyboard, an outside touch hands focus back.
   ✨ Send or a bubble tap stops listening and sends; the bubble shows Processing; the result goes through
   `LiveTyper.insert` (focused field, else clipboard). On failure the draft stays for Retry. Bubble long-press =
-  quick menu (AI rewrite on/off, Open Speaker). Bubble hidden = the draft is sent when the session ends.
+  quick menu (AI rewrite on/off, Prompt switcher, Open Speaker). Bubble hidden = the draft is sent when the session ends.
   `RewriteHistory`: last 50 pairs, phone-only, behind `Prefs.keepHistory`; shown in "Recent dictations".
 - `MicPipe`: owns the AudioRecord; reports pipe closed by recognizer, mic silenced by another app, mic failure;
   reopens a dead AudioRecord.
@@ -84,6 +84,11 @@ the same as `docs/privacy-policy.html` here.
 - `MicTileService`: Quick Settings tile that toggles the running service.
 - `TypeAccessibilityService` + `LiveTyper`: types into the focused field via the accessibility InputMethod
   (Android 13+), else ACTION_SET_TEXT / ACTION_PASTE, else clipboard.
+- `Prompts` + `Prefs.savedPrompts`: AI rewrite prompt library. Built-in presets plus the user's named prompts (JSON in prefs,
+  max 30). The active prompt is just `Prefs.polishPrompt`; its name is found by matching text (edited by hand = "Custom").
+  Managed in the app's prompt dialog (tap a chip to load, "Save as my prompt", long-press to rename/delete) and
+  switchable from the bubble's quick menu (📝 Prompt). `MainActivity.onResume` re-reads AI on/off and the prompt so
+  changes made from the bubble aren't overwritten by `saveSettings()`.
 - `Transcriber` / `Http`: provider REST calls with `HttpURLConnection` + `org.json` (AI rewrite times out at 30 s).
 - `Prefs`: SharedPreferences (excluded from backup and device transfer), provider enums and default models.
 - `ModelCatalog`: the Model dropdowns. Built-in model list per provider, plus the provider's own list-models

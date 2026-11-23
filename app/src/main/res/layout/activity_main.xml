@@ -348,14 +348,14 @@
                 <TextView
                     style="@style/Body"
                     android:layout_marginTop="6dp"
-                    android:text="Every sentence you speak goes to the AI with your session prompt, and the rewritten text replaces your words in the text field. Works with every speech engine." />
+                    android:text="Your words collect in a draft card next to the bubble. When you tap Send, the whole text goes to the AI with your prompt and the result is typed in. Save your own prompts and switch them here or from the bubble (long-press)." />
 
                 <Button
                     android:id="@+id/btnEditPrompt"
                     style="@style/ButtonTonal"
                     android:layout_width="match_parent"
                     android:layout_marginTop="12dp"
-                    android:text="Edit session prompt" />
+                    android:text="Prompt: Clean up · Edit" />
 
                 <LinearLayout
                     android:id="@+id/polishOptions"
@@ -404,7 +404,7 @@
 
                     <TextView
                         style="@style/Label"
-                        android:text="SESSION PROMPT" />
+                        android:text="PROMPT IN USE" />
 
                     <EditText
                         android:id="@+id/edtPrompt"

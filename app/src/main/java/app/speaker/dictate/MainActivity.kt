@@ -99,6 +99,11 @@ class MainActivity : Activity(), DictationEngine.Listener {
         spnLlm = findViewById(R.id.spnLlm)
         edtLlmModel = findViewById(R.id.edtLlmModel)
         edtPrompt = findViewById(R.id.edtPrompt)
+        edtPrompt.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+            override fun afterTextChanged(s: android.text.Editable?) { refreshPromptLabel(s?.toString() ?: "") }
+        })
         edtCustomUrl = findViewById(R.id.edtCustomUrl)
         edtLogUrl = findViewById(R.id.edtLogUrl)
 
@@ -202,7 +207,7 @@ class MainActivity : Activity(), DictationEngine.Listener {
         }
         findViewById<Button>(R.id.btnHistory).setOnClickListener { ui("Tap: Recent dictations"); showHistory() }
         findViewById<Button>(R.id.btnEditPrompt).setOnClickListener {
-            ui("Tap: Edit session prompt")
+            ui("Tap: Prompt button (active: \"${Prompts.activeName(prefs)}\")")
             showPromptDialog(enabling = false)
         }
         findViewById<Button>(R.id.btnTestLog).setOnClickListener {
@@ -233,6 +238,11 @@ class MainActivity : Activity(), DictationEngine.Listener {
     override fun onResume() {
         super.onResume()
         ui("Settings screen opened (multi-window=$isInMultiWindowMode)")
+        // The bubble's quick menu can switch AI rewrite or the prompt while this screen is in the background.
+        // Pick those up now, or onPause would save the stale values over them.
+        if (swPolish.isChecked != prefs.polishEnabled) swPolish.isChecked = prefs.polishEnabled
+        if (edtPrompt.text.toString().trim() != prefs.polishPrompt.trim()) edtPrompt.setText(prefs.polishPrompt)
+        refreshPromptLabel()
         refreshStatus()
         if (BuildConfig.DEV_TOOLS) Updater.check(this) { info ->
             if (info != null && info.versionCode > BuildConfig.VERSION_CODE) {
@@ -275,18 +285,15 @@ class MainActivity : Activity(), DictationEngine.Listener {
 
     private fun ui(msg: String) = android.util.Log.i("Speaker.ui", msg)
 
-    private val promptPresets = listOf(
-        "Fix grammar" to "Fix grammar, spelling and punctuation. Keep my words and tone; change as little as possible.",
-        "Professional" to "Rewrite it as clear, polite, professional writing suitable for work chat or email.",
-        "Casual" to "Rewrite it as friendly, casual chat. Fix mistakes, keep it short and natural.",
-        "To English" to "Translate it into natural English (it may be Hindi, Hinglish or another language). Fix grammar.",
-        "Concise" to "Make it shorter and clearer without losing meaning. Fix grammar.",
-        "Commands" to "I am dictating a terminal command. Output only the shell command, in lowercase where appropriate, with correct symbols and no explanation.",
-    )
+    /** Shows the active prompt's name on the AI rewrite button ("Prompt: Professional · Edit"). */
+    private fun refreshPromptLabel(text: String = prefs.polishPrompt) {
+        findViewById<Button>(R.id.btnEditPrompt).text = "Prompt: ${Prompts.nameFor(prefs, text)} · Edit"
+    }
 
     /**
-     * Session prompt editor. Opened when AI rewrite is switched on (Cancel leaves it off) and from
-     * "Edit session prompt". The prompt is sent to the LLM with every phrase you dictate.
+     * Prompt editor. Opened when AI rewrite is switched on (Cancel leaves it off) and from the Prompt button.
+     * Presets and the user's saved prompts are chips: tap one to load it into the field. "Save as my prompt"
+     * stores the field under a name; long-press a saved prompt to rename or delete it.
      */
     private fun showPromptDialog(enabling: Boolean) {
         val field = EditText(this, null, 0, R.style.Field).apply {
@@ -298,41 +305,78 @@ class MainActivity : Activity(), DictationEngine.Listener {
             gravity = android.view.Gravity.TOP or android.view.Gravity.START
             hint = "e.g. Fix my grammar and make it sound professional"
         }
-        val chips = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        promptPresets.forEach { (label, text) ->
-            chips.addView(Button(this, null, 0, R.style.ButtonTonal).apply {
-                this.text = label
-                isAllCaps = false
-                setOnClickListener { ui("Prompt preset: $label"); field.setText(text); field.setSelection(field.text.length) }
-            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(40)).apply { marginEnd = dp(8) })
+        fun load(item: PromptItem) {
+            ui("Prompt chip: ${if (item.builtIn) "preset" else "saved"} \"${item.name}\" (${item.text.length} chars)")
+            field.setText(item.text); field.setSelection(field.text.length)
         }
+        fun chip(label: String, onTap: () -> Unit, onLong: (() -> Unit)? = null) =
+            Button(this, null, 0, R.style.ButtonTonal).apply {
+                text = label
+                isAllCaps = false
+                setOnClickListener { onTap() }
+                if (onLong != null) setOnLongClickListener { onLong(); true }
+            }
+        fun chipParams() = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(40)).apply { marginEnd = dp(8) }
+        fun scroller(row: LinearLayout) = android.widget.HorizontalScrollView(this).apply {
+            isHorizontalScrollBarEnabled = false
+            addView(row)
+        }
+        fun label(t: String) = TextView(this, null, 0, R.style.Label).apply { text = t }
+
+        val presets = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        Prompts.BUILT_IN.forEach { item -> presets.addView(chip(item.name, { load(item) }), chipParams()) }
+
+        val mine = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val mineEmpty = TextView(this, null, 0, R.style.Body).apply {
+            text = "None yet. Write a prompt below, then tap Save as my prompt."
+        }
+        lateinit var refreshMine: () -> Unit
+        refreshMine = {
+            mine.removeAllViews()
+            val saved = prefs.savedPrompts
+            mineEmpty.visibility = if (saved.isEmpty()) View.VISIBLE else View.GONE
+            saved.forEach { item ->
+                mine.addView(chip("★ ${item.name}", { load(item) }, { savedPromptOptions(item) { refreshMine() } }), chipParams())
+            }
+        }
+        refreshMine()
+
+        val btnSaveMine = Button(this, null, 0, R.style.ButtonTonal).apply {
+            text = "＋ Save as my prompt"
+            isAllCaps = false
+            setOnClickListener { askPromptName(field.text.toString(), refreshMine) }
+        }
+
         val body = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(22), dp(8), dp(22), 0)
             addView(TextView(this@MainActivity, null, 0, R.style.Body).apply {
-                text = "Tell the AI what to do with everything you say. It's applied to every sentence before it's typed."
+                text = "Tell the AI what to do with what you say. When you tap Send, your whole draft goes to the AI with this prompt."
             })
-            addView(android.widget.HorizontalScrollView(this@MainActivity).apply {
-                isHorizontalScrollBarEnabled = false
-                addView(chips)
-            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12) })
-            addView(field, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12) })
+            addView(label("PRESETS"))
+            addView(scroller(presets), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(6) })
+            addView(label("MY PROMPTS (LONG-PRESS TO RENAME OR DELETE)"))
+            addView(scroller(mine), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(6) })
+            addView(mineEmpty)
+            addView(field, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14) })
+            addView(btnSaveMine, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44)).apply { topMargin = dp(8) })
         }
         var saved = false
         val dialog = android.app.AlertDialog.Builder(this)
-            .setTitle(if (enabling) "Turn on AI rewrite" else "Session prompt")
+            .setTitle(if (enabling) "Turn on AI rewrite" else "AI rewrite prompt")
             .setView(android.widget.ScrollView(this).apply { addView(body) })
-            .setPositiveButton(if (enabling) "Turn on" else "Save") { _, _ ->
+            .setPositiveButton(if (enabling) "Turn on" else "Use this prompt") { _, _ ->
                 saved = true
                 val p = field.text.toString().trim()
                 prefs.polishPrompt = p // blank falls back to the default clean-up prompt
                 edtPrompt.setText(prefs.polishPrompt)
+                refreshPromptLabel()
                 prefs.polishEnabled = true
-                ui("Session prompt saved (${p.length} chars, AI rewrite on)")
+                ui("Prompt in use: \"${Prompts.activeName(prefs)}\" (${p.length} chars, AI rewrite on)")
                 val llm = LlmProvider.from(prefs.llmProvider)
                 if (prefs.apiKey(llm.vendor).isBlank()) {
                     toast("AI rewrite is on. Add your ${llm.label} API key in API keys below")
-                } else toast("AI rewrite is on (${llm.label})")
+                } else toast("AI rewrite is on (${llm.label}) · Prompt: ${Prompts.activeName(prefs)}")
             }
             .setNegativeButton("Cancel", null)
             .create()
@@ -343,6 +387,80 @@ class MainActivity : Activity(), DictationEngine.Listener {
             }
         }
         dialog.show()
+    }
+
+    /** Asks for a name and saves [text] as one of the user's prompts (same name = replace). */
+    private fun askPromptName(text: String, done: () -> Unit) {
+        if (text.isBlank()) { toast("Write a prompt first, then save it"); return }
+        val current = Prompts.nameFor(prefs, text).takeIf { n -> prefs.savedPrompts.any { it.name == n } }
+        val name = EditText(this, null, 0, R.style.Field).apply {
+            hint = "Name, e.g. Work email"
+            setSingleLine()
+            filters = arrayOf(android.text.InputFilter.LengthFilter(Prompts.MAX_NAME))
+            setText(current ?: "")
+            setSelection(this.text.length)
+        }
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Save as my prompt")
+            .setView(LinearLayout(this).apply { setPadding(dp(22), dp(8), dp(22), 0); addView(name, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)) })
+            .setPositiveButton("Save") { _, _ ->
+                val n = name.text.toString().trim()
+                when {
+                    n.isEmpty() -> toast("Give the prompt a name")
+                    Prompts.BUILT_IN.any { it.name.equals(n, ignoreCase = true) } -> toast("“$n” is a preset name. Pick another name")
+                    else -> {
+                        val replacing = Prompts.exists(prefs, n)
+                        if (Prompts.save(prefs, n, text)) {
+                            ui("Saved prompt \"$n\" (${text.trim().length} chars, replaced=$replacing, total=${prefs.savedPrompts.size})")
+                            toast(if (replacing) "Updated “$n”" else "Saved “$n” to My prompts")
+                            done()
+                        } else toast("You can keep up to ${Prompts.MAX_SAVED} prompts. Delete one first")
+                    }
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    /** Long-press menu for a saved prompt: rename or delete. */
+    private fun savedPromptOptions(item: PromptItem, done: () -> Unit) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle(item.name)
+            .setItems(arrayOf("Rename", "Delete")) { _, which ->
+                if (which == 0) {
+                    val name = EditText(this, null, 0, R.style.Field).apply {
+                        setSingleLine()
+                        filters = arrayOf(android.text.InputFilter.LengthFilter(Prompts.MAX_NAME))
+                        setText(item.name); setSelection(text.length)
+                    }
+                    android.app.AlertDialog.Builder(this)
+                        .setTitle("Rename prompt")
+                        .setView(LinearLayout(this).apply { setPadding(dp(22), dp(8), dp(22), 0); addView(name, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)) })
+                        .setPositiveButton("Rename") { _, _ ->
+                            val n = name.text.toString().trim()
+                            when {
+                                n.isEmpty() || n == item.name -> Unit
+                                Prompts.BUILT_IN.any { it.name.equals(n, ignoreCase = true) } -> toast("“$n” is a preset name. Pick another name")
+                                prefs.savedPrompts.any { it.name.equals(n, ignoreCase = true) && it.name != item.name } -> toast("You already have a prompt called “$n”")
+                                else -> { Prompts.rename(prefs, item.name, n); ui("Renamed prompt \"${item.name}\" -> \"$n\""); refreshPromptLabel(); done() }
+                            }
+                        }
+                        .setNegativeButton("Cancel", null)
+                        .show()
+                } else {
+                    android.app.AlertDialog.Builder(this)
+                        .setMessage("Delete “${item.name}”?")
+                        .setPositiveButton("Delete") { _, _ ->
+                            Prompts.delete(prefs, item.name)
+                            ui("Deleted prompt \"${item.name}\" (total=${prefs.savedPrompts.size})")
+                            toast("Deleted “${item.name}”")
+                            refreshPromptLabel(); done()
+                        }
+                        .setNegativeButton("Cancel", null)
+                        .show()
+                }
+            }
+            .show()
     }
 
     // ---------------- layout / system bars ----------------
@@ -550,6 +668,7 @@ class MainActivity : Activity(), DictationEngine.Listener {
         swShowBubble.isChecked = prefs.showBubble
         findViewById<Switch>(R.id.swHistory).isChecked = prefs.keepHistory
         edtPrompt.setText(prefs.polishPrompt)
+        refreshPromptLabel()
         edtCustomUrl.setText(prefs.customBaseUrl)
         keyFields.forEach { (vendor, field) -> field.setText(prefs.apiKey(vendor)) }
         edtLogUrl.setText(prefs.logUrlField)

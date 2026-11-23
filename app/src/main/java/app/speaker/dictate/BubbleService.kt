@@ -726,9 +726,38 @@ class BubbleService : Service(), DictationEngine.Listener {
     private fun showQuickMenu() {
         hideMenu()
         finishEditing()
-        val bp = params ?: return
+        if (params == null) return
         log("Bubble long-press: quick menu")
         bubble?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+        val aiOn = prefs.polishEnabled
+        showPopup(listOf(
+            (if (aiOn) "✨ Turn AI rewrite off" else "✨ Turn AI rewrite on") to { setAiRewrite(!aiOn) },
+            "📝 Prompt: ${Prompts.activeName(prefs)}" to { showPromptMenu() },
+            "⚙ Open Speaker" to { openApp() },
+        ))
+    }
+
+    /** Second level of the quick menu: pick a preset or one of the user's saved prompts. */
+    private fun showPromptMenu() {
+        val active = Prompts.activeName(prefs)
+        log("Quick menu: prompt list (active \"$active\", saved=${prefs.savedPrompts.size})")
+        val items = Prompts.all(prefs).map { item ->
+            val mark = if (item.name == active) "✓  " else "     "
+            val star = if (item.builtIn) "" else "★ "
+            "$mark$star${item.name}" to { choosePrompt(item) }
+        } + ("✏ Add or edit prompts in Speaker" to { openApp() })
+        showPopup(items, header = "Prompt for AI rewrite", timeoutMs = 10_000)
+    }
+
+    private fun choosePrompt(item: PromptItem) {
+        Prompts.use(prefs, item)
+        log("Quick menu: prompt -> \"${item.name}\" (${if (item.builtIn) "preset" else "saved"}, ${item.text.length} chars, aiOn=${prefs.polishEnabled})")
+        toast(if (prefs.polishEnabled) "Prompt: ${item.name}" else "Prompt: ${item.name}. Turn AI rewrite on to use it")
+    }
+
+    /** Dark rounded popup beside the bubble; scrolls when the list is long; hides itself after [timeoutMs]. */
+    private fun showPopup(items: List<Pair<String, () -> Unit>>, header: String? = null, timeoutMs: Long = 6000) {
+        val bp = params ?: return
         fun item(label: String, onTap: () -> Unit) = TextView(this).apply {
             text = label
             textSize = 15f
@@ -736,17 +765,25 @@ class BubbleService : Service(), DictationEngine.Listener {
             setPadding(dp(16), dp(12), dp(20), dp(12))
             setOnClickListener { hideMenu(); onTap() }
         }
-        val aiOn = prefs.polishEnabled
-        val layout = LinearLayout(this).apply {
+        val list = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(0, dp(4), 0, dp(4))
+            if (header != null) addView(TextView(this@BubbleService).apply {
+                text = header
+                textSize = 12f
+                setTextColor(0xFFB8BCC6.toInt())
+                setPadding(dp(16), dp(10), dp(20), dp(4))
+            })
+            items.forEach { (label, onTap) -> addView(item(label, onTap)) }
+        }
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
             background = GradientDrawable().apply {
                 cornerRadius = dp(14).toFloat()
                 setColor(0xF5202124.toInt())
             }
             elevation = dp(6).toFloat()
-            addView(item(if (aiOn) "✨ Turn AI rewrite off" else "✨ Turn AI rewrite on") { setAiRewrite(!aiOn) })
-            addView(item("⚙ Open Speaker") { openApp() })
+            addView(android.widget.ScrollView(this@BubbleService).apply { isVerticalScrollBarEnabled = true; addView(list) })
             setOnTouchListener { _, e -> if (e.actionMasked == MotionEvent.ACTION_OUTSIDE) hideMenu(); false }
         }
         val lp = WindowManager.LayoutParams(
@@ -756,13 +793,19 @@ class BubbleService : Service(), DictationEngine.Listener {
                 WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT
         ).apply { gravity = Gravity.TOP or Gravity.START }
-        layout.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
-        val bw = dp(BUBBLE_W_DP)
         val (sw, sh) = screenSize()
+        layout.measure(
+            View.MeasureSpec.makeMeasureSpec(sw * 3 / 4, View.MeasureSpec.AT_MOST),
+            View.MeasureSpec.UNSPECIFIED
+        )
+        val maxH = minOf(dp(380), sh - dp(96))
+        val h = minOf(layout.measuredHeight, maxH)
+        if (layout.measuredHeight > maxH) lp.height = maxH
+        val bw = dp(BUBBLE_W_DP)
         lp.x = if (bp.x + bw / 2 > sw / 2) bp.x - layout.measuredWidth else bp.x + bw
-        lp.y = (bp.y + dp(20)).coerceIn(dp(24), (sh - layout.measuredHeight - dp(24)).coerceAtLeast(dp(24)))
+        lp.y = (bp.y + dp(20)).coerceIn(dp(24), (sh - h - dp(24)).coerceAtLeast(dp(24)))
         runCatching { wm.addView(layout, lp) }
-            .onSuccess { menu = layout; mainHandler.postDelayed(hideMenuLater, 6000) }
+            .onSuccess { menu = layout; mainHandler.postDelayed(hideMenuLater, timeoutMs) }
             .onFailure { log("Quick menu could not be shown: $it"); openApp() }
     }
 
