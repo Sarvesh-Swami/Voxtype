@@ -292,10 +292,12 @@ class MainActivity : Activity(), DictationEngine.Listener {
 
     /**
      * Prompt editor. Opened when AI rewrite is switched on (Cancel leaves it off) and from the Prompt button.
-     * Presets and the user's saved prompts are chips: tap one to load it into the field. "Save as my prompt"
-     * stores the field under a name; long-press a saved prompt to rename or delete it.
+     * One row of tabs: "＋ Custom", the user's saved prompts (★) and the presets. The selected tab is highlighted.
+     * Custom clears the box and shows a Name field with "Save to my prompts" right below it (no second dialog).
+     * Editing a preset's text turns it into Custom. Long-press a ★ prompt to rename or delete it.
      */
     private fun showPromptDialog(enabling: Boolean) {
+        val custom = Prompts.CUSTOM
         val field = EditText(this, null, 0, R.style.Field).apply {
             setText(prefs.polishPrompt)
             setSelection(text.length)
@@ -303,63 +305,122 @@ class MainActivity : Activity(), DictationEngine.Listener {
             minLines = 4
             maxLines = 8
             gravity = android.view.Gravity.TOP or android.view.Gravity.START
-            hint = "e.g. Fix my grammar and make it sound professional"
+            hint = "Type your own prompt, e.g. Reply like a friendly support agent"
         }
-        fun load(item: PromptItem) {
-            ui("Prompt chip: ${if (item.builtIn) "preset" else "saved"} \"${item.name}\" (${item.text.length} chars)")
-            field.setText(item.text); field.setSelection(field.text.length)
+        val nameField = EditText(this, null, 0, R.style.Field).apply {
+            hint = "Name it, e.g. Work email"
+            setSingleLine()
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_WORDS
+            filters = arrayOf(android.text.InputFilter.LengthFilter(Prompts.MAX_NAME))
         }
-        fun chip(label: String, onTap: () -> Unit, onLong: (() -> Unit)? = null) =
+        val btnSave = Button(this, null, 0, R.style.ButtonTonal).apply { text = "Save to my prompts"; isAllCaps = false }
+        fun label(t: String) = TextView(this, null, 0, R.style.Label).apply { text = t }
+        val customBox = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(label("NAME (TO SAVE IT FOR LATER)"))
+            addView(nameField, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(6) })
+            addView(btnSave, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44)).apply { topMargin = dp(8) })
+        }
+
+        val tabs = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        val brand = getColor(R.color.brand)
+        var selected = Prompts.nameFor(prefs, field.text.toString())
+        var quiet = false // true while we set the box's text ourselves
+
+        fun select(name: String) {
+            selected = name
+            customBox.visibility = if (name == custom) View.VISIBLE else View.GONE
+            for (i in 0 until tabs.childCount) {
+                val b = tabs.getChildAt(i) as Button
+                val on = b.tag == name
+                b.backgroundTintList = if (on) android.content.res.ColorStateList.valueOf(brand) else null
+                b.setTextColor(if (on) 0xFFFFFFFF.toInt() else (b.getTag(R.id.btnEditPrompt) as Int))
+            }
+        }
+        fun setBox(t: String) { quiet = true; field.setText(t); field.setSelection(field.text.length); quiet = false }
+        fun tab(label: String, key: String, onTap: () -> Unit, onLong: (() -> Unit)? = null) =
             Button(this, null, 0, R.style.ButtonTonal).apply {
                 text = label
+                tag = key
                 isAllCaps = false
+                setTag(R.id.btnEditPrompt, currentTextColor) // normal text colour, restored when deselected
                 setOnClickListener { onTap() }
                 if (onLong != null) setOnLongClickListener { onLong(); true }
             }
-        fun chipParams() = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(40)).apply { marginEnd = dp(8) }
-        fun scroller(row: LinearLayout) = android.widget.HorizontalScrollView(this).apply {
-            isHorizontalScrollBarEnabled = false
-            addView(row)
-        }
-        fun label(t: String) = TextView(this, null, 0, R.style.Label).apply { text = t }
+        fun tabParams() = LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, dp(40)).apply { marginEnd = dp(8) }
 
-        val presets = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        Prompts.BUILT_IN.forEach { item -> presets.addView(chip(item.name, { load(item) }), chipParams()) }
-
-        val mine = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
-        val mineEmpty = TextView(this, null, 0, R.style.Body).apply {
-            text = "None yet. Write a prompt below, then tap Save as my prompt."
-        }
-        lateinit var refreshMine: () -> Unit
-        refreshMine = {
-            mine.removeAllViews()
-            val saved = prefs.savedPrompts
-            mineEmpty.visibility = if (saved.isEmpty()) View.VISIBLE else View.GONE
-            saved.forEach { item ->
-                mine.addView(chip("★ ${item.name}", { load(item) }, { savedPromptOptions(item) { refreshMine() } }), chipParams())
+        lateinit var rebuild: () -> Unit
+        rebuild = {
+            tabs.removeAllViews()
+            tabs.addView(tab("＋ Custom", custom, {
+                ui("Prompt tab: Custom")
+                if (selected != custom) { setBox(""); nameField.setText("") }
+                select(custom)
+                field.requestFocus()
+            }), tabParams())
+            prefs.savedPrompts.forEach { item ->
+                tabs.addView(tab("★ ${item.name}", item.name, {
+                    ui("Prompt tab: saved \"${item.name}\" (${item.text.length} chars)")
+                    setBox(item.text); select(item.name)
+                }, {
+                    savedPromptOptions(item) { rebuild(); select(Prompts.nameFor(prefs, field.text.toString())) }
+                }), tabParams())
             }
+            Prompts.BUILT_IN.forEach { item ->
+                tabs.addView(tab(item.name, item.name, {
+                    ui("Prompt tab: preset \"${item.name}\" (${item.text.length} chars)")
+                    setBox(item.text); select(item.name)
+                }), tabParams())
+            }
+            select(selected)
         }
-        refreshMine()
+        rebuild()
 
-        val btnSaveMine = Button(this, null, 0, R.style.ButtonTonal).apply {
-            text = "＋ Save as my prompt"
-            isAllCaps = false
-            setOnClickListener { askPromptName(field.text.toString(), refreshMine) }
+        field.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+            override fun onTextChanged(s: CharSequence?, a: Int, b: Int, c: Int) = Unit
+            override fun afterTextChanged(s: android.text.Editable?) {
+                if (quiet) return
+                val t = s?.toString() ?: ""
+                // Typing your own text makes it Custom; an empty box stays Custom while you're on that tab.
+                select(if (t.isBlank() && selected == custom) custom else Prompts.nameFor(prefs, t))
+            }
+        })
+
+        btnSave.setOnClickListener {
+            val text = field.text.toString().trim()
+            val name = nameField.text.toString().trim()
+            when {
+                text.isEmpty() -> { toast("Type your prompt in the box first"); field.requestFocus() }
+                name.isEmpty() -> { toast("Give it a name so you can find it later"); nameField.requestFocus() }
+                Prompts.BUILT_IN.any { it.name.equals(name, ignoreCase = true) } || name.equals(custom, ignoreCase = true) ->
+                    toast("“$name” is already taken by a preset. Pick another name")
+                else -> {
+                    val replacing = Prompts.exists(prefs, name)
+                    if (Prompts.save(prefs, name, text)) {
+                        val savedName = prefs.savedPrompts.first { it.name.equals(name, ignoreCase = true) }.name
+                        ui("Saved prompt \"$savedName\" (${text.length} chars, replaced=$replacing, total=${prefs.savedPrompts.size})")
+                        toast(if (replacing) "Updated “$savedName”" else "Saved “$savedName”. It's now in your tabs")
+                        selected = savedName
+                        rebuild()
+                    } else toast("You can keep up to ${Prompts.MAX_SAVED} prompts. Long-press one to delete it")
+                }
+            }
         }
 
         val body = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(22), dp(8), dp(22), 0)
             addView(TextView(this@MainActivity, null, 0, R.style.Body).apply {
-                text = "Tell the AI what to do with what you say. When you tap Send, your whole draft goes to the AI with this prompt."
+                text = "Pick a prompt, or tap ＋ Custom to write your own. When you tap Send, your whole draft goes to the AI with this prompt. Long-press a ★ prompt to rename or delete it."
             })
-            addView(label("PRESETS"))
-            addView(scroller(presets), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(6) })
-            addView(label("MY PROMPTS (LONG-PRESS TO RENAME OR DELETE)"))
-            addView(scroller(mine), LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(6) })
-            addView(mineEmpty)
-            addView(field, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14) })
-            addView(btnSaveMine, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(44)).apply { topMargin = dp(8) })
+            addView(android.widget.HorizontalScrollView(this@MainActivity).apply {
+                isHorizontalScrollBarEnabled = false
+                addView(tabs)
+            }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(12) })
+            addView(label("PROMPT"))
+            addView(field, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(6) })
+            addView(customBox)
         }
         var saved = false
         val dialog = android.app.AlertDialog.Builder(this)
@@ -386,40 +447,9 @@ class MainActivity : Activity(), DictationEngine.Listener {
                 swPolish.isChecked = false
             }
         }
+        // Let the keyboard push the dialog up instead of covering the Name field and Save button.
+        dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         dialog.show()
-    }
-
-    /** Asks for a name and saves [text] as one of the user's prompts (same name = replace). */
-    private fun askPromptName(text: String, done: () -> Unit) {
-        if (text.isBlank()) { toast("Write a prompt first, then save it"); return }
-        val current = Prompts.nameFor(prefs, text).takeIf { n -> prefs.savedPrompts.any { it.name == n } }
-        val name = EditText(this, null, 0, R.style.Field).apply {
-            hint = "Name, e.g. Work email"
-            setSingleLine()
-            filters = arrayOf(android.text.InputFilter.LengthFilter(Prompts.MAX_NAME))
-            setText(current ?: "")
-            setSelection(this.text.length)
-        }
-        android.app.AlertDialog.Builder(this)
-            .setTitle("Save as my prompt")
-            .setView(LinearLayout(this).apply { setPadding(dp(22), dp(8), dp(22), 0); addView(name, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)) })
-            .setPositiveButton("Save") { _, _ ->
-                val n = name.text.toString().trim()
-                when {
-                    n.isEmpty() -> toast("Give the prompt a name")
-                    Prompts.BUILT_IN.any { it.name.equals(n, ignoreCase = true) } -> toast("“$n” is a preset name. Pick another name")
-                    else -> {
-                        val replacing = Prompts.exists(prefs, n)
-                        if (Prompts.save(prefs, n, text)) {
-                            ui("Saved prompt \"$n\" (${text.trim().length} chars, replaced=$replacing, total=${prefs.savedPrompts.size})")
-                            toast(if (replacing) "Updated “$n”" else "Saved “$n” to My prompts")
-                            done()
-                        } else toast("You can keep up to ${Prompts.MAX_SAVED} prompts. Delete one first")
-                    }
-                }
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
     }
 
     /** Long-press menu for a saved prompt: rename or delete. */

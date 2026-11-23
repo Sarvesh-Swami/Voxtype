@@ -86,7 +86,8 @@ the same as `docs/privacy-policy.html` here.
   (Android 13+), else ACTION_SET_TEXT / ACTION_PASTE, else clipboard.
 - `Prompts` + `Prefs.savedPrompts`: AI rewrite prompt library. Built-in presets plus the user's named prompts (JSON in prefs,
   max 30). The active prompt is just `Prefs.polishPrompt`; its name is found by matching text (edited by hand = "Custom").
-  Managed in the app's prompt dialog (tap a chip to load, "Save as my prompt", long-press to rename/delete) and
+  Managed in the app's prompt dialog: one tab row (＋ Custom, ★ saved, presets; selected tab highlighted). Custom shows
+  an inline Name field + "Save to my prompts"; long-press a ★ tab to rename/delete. Editing a preset's text makes it Custom and
   switchable from the bubble's quick menu (📝 Prompt). `MainActivity.onResume` re-reads AI on/off and the prompt so
   changes made from the bubble aren't overwritten by `saveSettings()`.
 - `Transcriber` / `Http`: provider REST calls with `HttpURLConnection` + `org.json` (AI rewrite times out at 30 s).
