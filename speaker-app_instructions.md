@@ -101,6 +101,9 @@ the same as `docs/privacy-policy.html` here.
   `MainActivity.applySystemBarPadding()` pads for system bars + IME. New screens must do the same.
 - Edit source files with the Edit tool, or with .NET `[IO.File]` using UTF-8. PowerShell 5.1's
   `Get-Content`/`Set-Content` garble non-ASCII text. Keep LF line endings.
+- The `Field` style must keep its `android:Widget.Material.Light.EditText` parent. Code-made text boxes use
+  `EditText(ctx, null, 0, R.style.Field)`, which skips the theme's defaults; without the parent they aren't focusable and
+  the keyboard never opens.
 - No third-party dependencies (no AndroidX); keep it that way unless there's a strong reason.
 - minSdk 26, targetSdk/compileSdk 36, Kotlin 2.0.21, AGP 8.7.3.
 - Default model names go stale. Update the defaults in `Prefs.kt` and the built-in lists in `ModelCatalog.kt`
