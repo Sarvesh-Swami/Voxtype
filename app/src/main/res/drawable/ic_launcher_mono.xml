@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- VoxType mascot icon (generated from the BoyView head shapes). Only the middle 72x72 shows on launchers. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
-    <group android:scaleX="1.8" android:scaleY="1.8" android:translateX="32.4" android:translateY="31.5">
-        <path android:fillColor="#FFFFFFFF" android:pathData="M12,14c1.66,0 2.99,-1.34 2.99,-3L15,5c0,-1.66 -1.34,-3 -3,-3S9,3.34 9,5v6c0,1.66 1.34,3 3,3zM17.3,11c0,3 -2.54,5.1 -5.3,5.1S6.7,14 6.7,11L5,11c0,3.41 2.72,6.23 6,6.72L11,21h2v-3.28c3.28,-0.48 6,-3.3 6,-6.72h-1.7z" />
+    <group android:translateX="4.7" android:translateY="16.4" android:scaleX="1.25" android:scaleY="1.25">
+        <path android:pathData="M33 46 C28 45.6 24.6 48 24.4 52 C24.2 54.6 25 56.4 26 57.4 C25 62 25 67 25.8 71 L26.2 72.6 L26.4 77 C32 78 40 78 47 76.8 L47.2 72.8 C49.8 72 50.8 70 50.6 67 C50.4 62 50 57.4 48.6 53.4 C47.4 50 45 47.6 41.6 46.8 C38.8 46.2 35.8 46 33 46 Z" android:fillColor="#FFFFFFFF" />
+        <path android:pathData="M33.4 45 C28.6 43.6 23.6 46.4 23.4 51.4 C23.2 56 27 58.6 31.4 58 C35 57.6 37.2 54 37.4 50.4 C37.4 47.8 35.8 45.8 33.4 45 Z" android:fillColor="#FFFFFFFF" />
+        <path android:pathData="M34 42 L42 42.6 L42.6 48.4 L34.6 48.6 Z" android:fillColor="#80FFFFFF" />
+        <path android:pathData="M40 10 C29 10 22.5 18 22.5 28 C22.5 37 28 44.5 37 45.8 C42 46.5 47.5 45.6 51 43.6 C53.4 42.2 54.6 40.6 54.8 39 L55.4 37.6 L56 36 L57.8 34.6 C58 33.6 57 32.6 56.6 31.6 C57.2 28 57.4 25 56.6 21.6 C55 14.6 48.6 10 40 10 Z" android:fillColor="#80FFFFFF" />
+        <path android:pathData="M23.2 30 C21.4 19 27.6 9.4 40.4 8 C49 7.2 56 10.6 57.6 16.6 C58.2 19 57.6 21 56.2 21.6 C55 19.6 52.6 18.6 50.4 19.4 C48 20.2 45.2 19.6 43.8 18.4 C43 21.4 41.4 23.6 39.2 24.6 L38 31.4 C35.6 32.4 33.6 34.4 32.6 37 C30.6 35.8 28.6 35.4 26.8 36 C24.8 34.6 23.6 32.4 23.2 30 Z" android:fillColor="#C0FFFFFF" />
+        <path android:pathData="M47.2 30.9 Q50.2 32.2 52.9 30.6" android:fillColor="#00000000" android:strokeColor="#FFFFFFFF" android:strokeWidth="1.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M46.6 26.6 Q50 25.2 53.6 26" android:fillColor="#00000000" android:strokeColor="#FFFFFFFF" android:strokeWidth="1.6" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M35.4 25.4 C33.4 16 36.8 8.6 44.4 7.4" android:fillColor="#00000000" android:strokeColor="#FFFFFFFF" android:strokeWidth="2.8" android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M32.0 31.4 A4.4 5.8 0 1 0 40.8 31.4 A4.4 5.8 0 1 0 32.0 31.4 Z" android:fillColor="#FFFFFFFF" />
     </group>
-    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="3.5" android:strokeLineCap="round" android:fillColor="#00000000"
-        android:pathData="M35,45 Q30,54 35,63 M73,45 Q78,54 73,63" />
-    <path android:strokeColor="#FFFFFFFF" android:strokeAlpha="0.6" android:strokeWidth="3.5" android:strokeLineCap="round" android:fillColor="#00000000"
-        android:pathData="M28,40 Q20,54 28,68 M80,40 Q88,54 80,68" />
 </vector>
