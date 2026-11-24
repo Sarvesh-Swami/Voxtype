@@ -137,6 +137,71 @@ class MainActivity : Activity(), DictationEngine.Listener {
         loadSettings()
         wireActions()
         applyFlavor()
+        setupCharacters()
+    }
+
+    /**
+     * Characters store: one tile per [Skins] entry with a live preview (the character raises his laptop when the
+     * tile appears). Tapping a tile makes it the floating character; a running bubble switches right away.
+     */
+    private fun setupCharacters() {
+        val row = findViewById<LinearLayout>(R.id.rowSkins)
+        val state = findViewById<TextView>(R.id.txtSkinState)
+        row.removeAllViews()
+        val tiles = mutableListOf<Pair<Skin, LinearLayout>>()
+        fun refresh() {
+            val current = Skins.byId(prefs.skinId)
+            state.text = current.name
+            tiles.forEach { (skin, tile) ->
+                val on = skin.id == current.id
+                tile.setBackgroundResource(if (on) R.drawable.bg_skin_tile_on else R.drawable.bg_skin_tile)
+                (tile.getChildAt(3) as TextView).text = if (on) "✓ In use" else "Free · Tap to use"
+                (tile.getChildAt(3) as TextView).setTextColor(getColor(if (on) R.color.brand else R.color.text_secondary))
+            }
+        }
+        Skins.ALL.forEachIndexed { i, skin ->
+            val preview = BoyView(this).apply {
+                this.skin = skin
+                still = true
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                setBackgroundResource(R.drawable.bg_skin_stage)
+                setPadding(dp(6), dp(8), dp(6), dp(4))
+            }
+            val tile = LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(dp(8), dp(8), dp(8), dp(10))
+                isClickable = true; isFocusable = true
+                contentDescription = "${skin.name}: ${skin.tagline}"
+                addView(preview, LinearLayout.LayoutParams(dp(104), dp(176)))
+                addView(TextView(this@MainActivity).apply {
+                    text = skin.name; textSize = 15f
+                    setTextColor(getColor(R.color.text_primary)); typeface = android.graphics.Typeface.DEFAULT_BOLD
+                    setPadding(dp(2), dp(8), 0, 0)
+                })
+                addView(TextView(this@MainActivity).apply {
+                    text = skin.tagline; textSize = 11.5f; maxLines = 2
+                    setTextColor(getColor(R.color.text_secondary)); setPadding(dp(2), dp(2), 0, 0)
+                }, LinearLayout.LayoutParams(dp(104), LinearLayout.LayoutParams.WRAP_CONTENT))
+                addView(TextView(this@MainActivity).apply { textSize = 12f; setPadding(dp(2), dp(6), 0, 0) })
+                setOnClickListener {
+                    if (prefs.skinId == skin.id) return@setOnClickListener
+                    prefs.skinId = skin.id
+                    ui("Character chosen: ${skin.id}")
+                    preview.mode = BoyView.Mode.VIBING
+                    preview.postDelayed({ preview.mode = BoyView.Mode.LISTENING }, 450)
+                    BubbleService.refresh(this@MainActivity)
+                    refresh()
+                    toast("${skin.name} is your floating character")
+                }
+            }
+            row.addView(tile, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                if (i > 0) marginStart = dp(10)
+            })
+            tiles += skin to tile
+            // Show off the pose: headphones off and laptop up, staggered across the row.
+            preview.postDelayed({ preview.mode = BoyView.Mode.LISTENING }, 500L + i * 180L)
+        }
+        refresh()
     }
 
     /** Without dev tools (all release builds): hide the sideload Update button and the remote-log URL. */

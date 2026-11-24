@@ -42,7 +42,7 @@ android {
         applicationId = "app.speaker.dictate"
         minSdk = 26
         targetSdk = 36 // Google Play: new apps and updates must target Android 16 (API 36)
-        versionCode = 31
+        versionCode = 32
         versionName = "1.1.0"
     }
 

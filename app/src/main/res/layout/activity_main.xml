@@ -254,6 +254,47 @@
                     android:text="Show the floating bubble" />
             </LinearLayout>
 
+            <!-- ===== Characters store (tiles are added in MainActivity.setupCharacters) ===== -->
+            <LinearLayout style="@style/Card">
+
+                <LinearLayout style="@style/CardHeader">
+
+                    <ImageView
+                        style="@style/CardIcon"
+                        android:src="@drawable/ic_sparkle" />
+
+                    <TextView
+                        style="@style/CardTitle"
+                        android:text="Characters" />
+
+                    <TextView
+                        android:id="@+id/txtSkinState"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="sans-serif-medium"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <TextView
+                    style="@style/Body"
+                    android:layout_marginTop="10dp"
+                    android:text="Pick who floats over your apps. Every character is free and does the same thing: headphones off, laptop up, typing while you talk." />
+
+                <HorizontalScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:scrollbars="none">
+
+                    <LinearLayout
+                        android:id="@+id/rowSkins"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal" />
+                </HorizontalScrollView>
+            </LinearLayout>
+
             <!-- ===== Speech engine ===== -->
             <LinearLayout style="@style/Card">
 
