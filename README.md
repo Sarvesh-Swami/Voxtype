@@ -10,7 +10,7 @@ until you tap again or leave the text field.
 
 - **Floating character** over every app, leaning on the screen edge. Tap = start/stop, drag = move,
   long-press = quick menu. While you talk he pulls his headphones down, opens his laptop and types.
-- **Characters**: pick who floats on your screen: Vox, Shade, Noir, Kitsune or Volt. All free.
+- **Characters**: pick who floats on your screen (Vox for now; more on the way).
 - **Island / media controls**: start and stop from your phone's island, notification shade or lock
   screen (▶ = dictate, ⏸ = stop).
 - **Notification** and **Quick Settings tile** ("Dictate").

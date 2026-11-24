@@ -279,7 +279,7 @@
                 <TextView
                     style="@style/Body"
                     android:layout_marginTop="10dp"
-                    android:text="Pick who floats over your apps. Every character is free and does the same thing: headphones off, laptop up, typing while you talk." />
+                    android:text="Pick who floats over your apps. While you talk he takes his headphones off, opens his laptop and types. More characters are on the way." />
 
                 <HorizontalScrollView
                     android:layout_width="match_parent"
