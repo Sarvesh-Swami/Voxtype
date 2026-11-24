@@ -38,7 +38,7 @@ counts transmitting data off the device as "collection", so declare it to be saf
 - Not collected: location, contacts, identifiers, app activity, diagnostics (logs are only shared manually).
 
 ## 4. Store listing assets you still need to make
-- [x] App icon 512×512 PNG: `docs/play-icon-512.png` (the Vox character's head on the violet-to-blue brand gradient, same art as the launcher icon).
+- [x] App icon 512×512 PNG: `docs/play-icon-512.png` (the mascot head on yellow #FFD23F, same art as the launcher icon).
 - [ ] Feature graphic 1024×500.
 - [ ] At least 2 phone screenshots (main screen, bubble over a chat app, AI rewrite dialog).
 - [ ] Short description (80 chars), full description. Don't name other brands in the title. Mention that AI

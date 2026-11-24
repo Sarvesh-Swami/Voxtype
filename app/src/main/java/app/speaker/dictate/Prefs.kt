@@ -113,11 +113,6 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("show_bubble", true)
         set(v) = sp.edit().putBoolean("show_bubble", v).apply()
 
-    /** The floating character chosen in the Characters store (a [Skins] id). */
-    var skinId: String
-        get() = str("skin", Skins.DEFAULT.id)
-        set(v) = sp.edit().putString("skin", v).apply()
-
     var stopOnFocusLoss: Boolean
         get() = sp.getBoolean("stop_on_focus_loss", true)
         set(v) = sp.edit().putBoolean("stop_on_focus_loss", v).apply()

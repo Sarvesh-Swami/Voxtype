@@ -227,8 +227,7 @@ class BubbleService : Service(), DictationEngine.Listener {
     }
 
     private fun applySettings() {
-        log("Applying settings: showBubble=${prefs.showBubble} islandMedia=${prefs.islandMedia} character=${prefs.skinId}")
-        bubble?.skin = Skins.byId(prefs.skinId)
+        log("Applying settings: showBubble=${prefs.showBubble} islandMedia=${prefs.islandMedia}")
         if (prefs.showBubble && bubble == null && Settings.canDrawOverlays(this)) addBubble()
         if (!prefs.showBubble) removeBubble()
         if (prefs.islandMedia && session == null) startMediaSession()
@@ -857,11 +856,8 @@ class BubbleService : Service(), DictationEngine.Listener {
 
     private fun addBubble() {
         val w = dp(BUBBLE_W_DP); val h = dp(BUBBLE_H_DP)
-        // The character on a transparent background (no circle behind him), standing at the screen edge.
-        val view = BoyView(this).apply {
-            contentDescription = "VoxType dictation"
-            skin = Skins.byId(prefs.skinId)
-        }
+        // The boy on a transparent background (no circle behind him), standing at the screen edge.
+        val view = BoyView(this).apply { contentDescription = "VoxType dictation" }
         val lp = WindowManager.LayoutParams(
             w, h,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
