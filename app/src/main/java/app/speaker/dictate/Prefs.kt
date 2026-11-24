@@ -94,7 +94,7 @@ class Prefs(context: Context) {
         get() = sp.getBoolean("polish_enabled", false)
         set(v) = sp.edit().putBoolean("polish_enabled", v).apply()
 
-    /** Sound streams Speaker muted during dictation (restored at app start if a crash left them). */
+    /** Sound streams VoxType muted during dictation (restored at app start if a crash left them). */
     var mutedStreams: String
         get() = str("muted_streams")
         set(v) = put("muted_streams", v)

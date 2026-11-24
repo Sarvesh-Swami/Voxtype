@@ -1,6 +1,6 @@
-# Speaker: voice typing for every Android app
+# VoxType: voice typing for every Android app
 
-Speaker floats a mic bubble over every app. Tap it, talk, and your words are typed live into whatever
+VoxType floats a mic bubble over every app. Tap it, talk, and your words are typed live into whatever
 text field you're in: chats, email, notes, even terminals like Termux. Tap again to stop.
 
 Dictation is **continuous**: one tap starts it, and it keeps typing as you speak, pauses included,
@@ -38,19 +38,19 @@ transfer) and are sent only to the provider each key belongs to.
 
 ## Getting started
 
-1. Install Speaker from Google Play and open it.
+1. Install VoxType from Google Play and open it.
 2. Follow the **Finish setup** checklist:
    1. **Microphone**: to hear you.
    2. **Display over other apps**: for the floating bubble.
-   3. **Auto-typing**: Speaker explains what it does, then opens Accessibility settings; turn on
-      **Speaker auto-type**. Without it, dictation is copied to the clipboard so you can paste it.
+   3. **Auto-typing**: VoxType explains what it does, then opens Accessibility settings; turn on
+      **VoxType auto-type**. Without it, dictation is copied to the clipboard so you can paste it.
    4. **Run in background** (recommended): stops the phone from closing the bubble.
 3. Optional: choose an engine and paste your API key, or turn on **AI rewrite**.
 4. Tap **Start floating bubble**, open any app, tap a text field, then tap the bubble and talk.
 
 ## Privacy
 
-Speaker has no servers; the developer receives nothing. Audio is processed by your phone's speech
+VoxType has no servers; the developer receives nothing. Audio is processed by your phone's speech
 service (built-in engine) or sent directly from your phone to the provider you chose. See
 [docs/privacy-policy.html](docs/privacy-policy.html) and the in-app **Privacy & permissions** screen.
 

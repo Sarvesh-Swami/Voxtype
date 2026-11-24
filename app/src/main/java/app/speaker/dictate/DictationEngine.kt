@@ -163,7 +163,7 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
             if (state == State.IDLE) return@post
             if (silenced && !micSilencedNotified) {
                 micSilencedNotified = true
-                listener.onError("Another app is using the microphone. Speaker will hear you again when it lets go.")
+                listener.onError("Another app is using the microphone. VoxType will hear you again when it lets go.")
             }
             if (!silenced) micSilencedNotified = false
         }
@@ -223,13 +223,13 @@ class DictationEngine(private val ctx: Context, private val listener: Listener, 
     private fun start() {
         if (ctx.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             Log.w(tag, "start() refused: RECORD_AUDIO not granted")
-            listener.onError("Microphone permission not granted. Open Speaker to grant it.")
+            listener.onError("Microphone permission not granted. Open VoxType to grant it.")
             return
         }
         val provider = SttProvider.from(prefs.sttProvider)
         if (provider.needsKey && prefs.apiKey(provider.vendor).isBlank()) {
             Log.w(tag, "start() refused: no API key for ${provider.id}")
-            listener.onError("No API key set for ${provider.label}. Add it in Speaker settings.")
+            listener.onError("No API key set for ${provider.label}. Add it in VoxType settings.")
             return
         }
         session++

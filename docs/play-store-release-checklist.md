@@ -1,4 +1,4 @@
-# Speaker: Google Play release checklist
+# VoxType: Google Play release checklist
 
 Build to upload: `app/build/outputs/bundle/release/app-release.aab` (from `gradlew bundleRelease` on the Main branch).
 Also upload `app/build/outputs/mapping/release/mapping.txt` (Play Console → App bundle explorer → deobfuscation file).
@@ -18,7 +18,7 @@ Also upload `app/build/outputs/mapping/release/mapping.txt` (Play Console → Ap
 |---|---|
 | Privacy policy | Your hosted URL. |
 | Ads | No ads. |
-| App access | All functionality available without login. In the instructions, say that the reviewer has to allow Microphone, Display over other apps and the Speaker auto-type Accessibility service from the in-app checklist. The built-in engine needs no API key. |
+| App access | All functionality available without login. In the instructions, say that the reviewer has to allow Microphone, Display over other apps and the VoxType auto-type Accessibility service from the in-app checklist. The built-in engine needs no API key. |
 | Content rating | Utility / productivity questionnaire, no objectionable content. |
 | Target audience | 13+ (or 18+). Not for children. |
 | **Accessibility API** | Declare the AccessibilityService. Purpose: types dictated speech into the focused text field for the user (voice input). Not an accessibility tool (`isAccessibilityTool=false`). The app shows a prominent disclosure and asks for consent before opening the setting. Attach a short video: open app → Enable auto-typing → disclosure → settings → dictate into a chat app. |
@@ -56,11 +56,11 @@ counts transmitting data off the device as "collection", so declare it to be saf
 
 ## 6. Known review risks (not hard blockers)
 - **Accessibility review is strict.** Typing for the user is an accepted use, but reviewers can still reject
-  if the declaration or video is unclear. The safest long-term option is to also ship Speaker as a voice
+  if the declaration or video is unclear. The safest long-term option is to also ship VoxType as a voice
   **keyboard** (InputMethodService), which needs no accessibility permission.
 - **Island / media controls** show dictation as a media session. Hardware media buttons are ignored (they can't
   start the mic). If a reviewer objects, turn the default to off in `Prefs.islandMedia`.
-- **Beep muting**: with the fallback restart-loop recognizer, Speaker mutes the system/notification/music
+- **Beep muting**: with the fallback restart-loop recognizer, VoxType mutes the system/notification/music
   streams during dictation and restores them afterwards (also after a crash). This is disclosed nowhere yet;
   consider a line in the description.
-- The app name "Speaker" is generic. Check it doesn't clash with an existing listing or trademark.
+- Check the app name "VoxType" doesn't clash with an existing Play listing or trademark before creating the app.

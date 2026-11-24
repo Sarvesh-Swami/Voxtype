@@ -1,6 +1,8 @@
 # speaker-app: agent instructions
 
-Android dictation app ("Speaker", package `app.speaker.dictate`). User-facing overview: `README.md`.
+Android dictation app **VoxType** (renamed from "Speaker" on 2026-11-24). Only user-visible text says VoxType: the
+package `app.speaker.dictate`, class names (`SpeakerApp`, services) and log tags (`Speaker.*`) keep the old name on
+purpose. Changing the package breaks Play/in-place updates, and the enabled accessibility service is tracked by class name. User-facing overview: `README.md`.
 Play Store release steps and policy notes: `docs/play-store-release-checklist.md`.
 The public website is a separate repo: `D:\Projects\speaker-website` (GitHub Pages on a Namecheap subdomain; see its
 `README.md` and `speaker-website_instructions.md`). Keep its `src/privacy-policy.html` the same as
@@ -51,7 +53,7 @@ The public website is a separate repo: `D:\Projects\speaker-website` (GitHub Pag
   `dev-local/dev.properties` for each APK handed over. Don't rename the service classes (an enabled
   accessibility service is tracked by class name).
 - Ship: raise `devVersionCode`, `gradlew assembleDebug`, copy `app/build/outputs/apk/debug/app-debug.apk` to
-  `dist/Speaker-<versionName>-debug.apk` (`dist/` is git-ignored). `dev-local/tools/log-server.mjs` reads
+  `dist/VoxType-<versionName>-debug.apk` (`dist/` is git-ignored). `dev-local/tools/log-server.mjs` reads
   `devVersionCode` (else the shared versionCode) and serves `/update/latest.json` + `/update/apk`; the user taps
   **Update** in the app.
 - A Play-installed copy is signed by Google's key, so it can't replace the sideloaded dev app (or vice versa)
@@ -80,7 +82,7 @@ The public website is a separate repo: `D:\Projects\speaker-website` (GitHub Pag
   tapping the text makes the overlay focusable for the keyboard, an outside touch hands focus back.
   ✨ Send or a bubble tap stops listening and sends; the bubble shows Processing; the result goes through
   `LiveTyper.insert` (focused field, else clipboard). On failure the draft stays for Retry. Bubble long-press =
-  quick menu (AI rewrite on/off, Prompt switcher, Open Speaker). Bubble hidden = the draft is sent when the session ends.
+  quick menu (AI rewrite on/off, Prompt switcher, Open VoxType). Bubble hidden = the draft is sent when the session ends.
   `RewriteHistory`: last 50 pairs, phone-only, behind `Prefs.keepHistory`; shown in "Recent dictations".
 - `MicPipe`: owns the AudioRecord; reports pipe closed by recognizer, mic silenced by another app, mic failure;
   reopens a dead AudioRecord.

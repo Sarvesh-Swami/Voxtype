@@ -59,7 +59,7 @@ class TypeAccessibilityService : AccessibilityService() {
             (serviceInfo?.flags ?: 0) and AccessibilityServiceInfo.FLAG_INPUT_METHOD_EDITOR != 0
         Log.i(TAG, "Accessibility service connected (sdk=${Build.VERSION.SDK_INT}, inputMethodFlag=$imFlag)")
         if (Build.VERSION.SDK_INT >= 33 && !imFlag) {
-            Log.w(TAG, "Input-method typing not granted yet: turn Speaker auto-type OFF and ON again in Accessibility settings")
+            Log.w(TAG, "Input-method typing not granted yet: turn VoxType auto-type OFF and ON again in Accessibility settings")
         }
     }
 

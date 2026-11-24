@@ -23,7 +23,7 @@
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="false"
         android:icon="@mipmap/ic_launcher"
-        android:label="Speaker"
+        android:label="VoxType"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
@@ -46,7 +46,7 @@
         <service
             android:name=".TypeAccessibilityService"
             android:exported="true"
-            android:label="Speaker auto-type"
+            android:label="VoxType auto-type"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />

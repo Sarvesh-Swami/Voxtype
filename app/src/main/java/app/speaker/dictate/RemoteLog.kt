@@ -96,7 +96,7 @@ object RemoteLog {
     /** The most recent log lines (kept even when no log URL is set), for Copy/Share logs. */
     fun recentText(): String {
         val lines = synchronized(recent) { recent.toList() }
-        return "Speaker logs: ${source.replace('|', ' ')}\n" + lines.joinToString("\n")
+        return "VoxType logs: ${source.replace('|', ' ')}\n" + lines.joinToString("\n")
     }
 
     private val recent = ArrayDeque<String>()
@@ -122,7 +122,7 @@ object RemoteLog {
     }
 
     /**
-     * Keeps everything Speaker logs (any level), plus Info/Warning/Error/Fatal from Android itself
+     * Keeps everything VoxType logs (any level), plus Info/Warning/Error/Fatal from Android itself
      * (audio, permissions, crashes). Drops Android's Verbose/Debug chatter (autofill, layout, touch).
      * Line format (-v time): "MM-DD HH:MM:SS.mmm L/Tag(pid): message".
      */

@@ -109,7 +109,7 @@ class MainActivity : Activity(), DictationEngine.Listener {
 
         findViewById<TextView>(R.id.txtVersion).text = "v${BuildConfig.VERSION_NAME}"
         findViewById<TextView>(R.id.txtFooter).text =
-            "Speaker v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · your keys stay on this phone"
+            "VoxType v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · your keys stay on this phone"
 
         sttPicker = ModelPicker(
             R.id.spnSttModel, R.id.edtSttModel, R.id.btnSttModels,
@@ -221,14 +221,14 @@ class MainActivity : Activity(), DictationEngine.Listener {
         findViewById<View>(R.id.btnPrivacy).setOnClickListener { ui("Tap: Privacy"); showPrivacy() }
         findViewById<Button>(R.id.btnCopyLogs).setOnClickListener {
             ui("Tap: Copy logs")
-            copy("Speaker logs", RemoteLog.recentText())
+            copy("VoxType logs", RemoteLog.recentText())
             toast("Logs copied. Paste them anywhere")
         }
         findViewById<Button>(R.id.btnShareLogs).setOnClickListener {
             ui("Tap: Share logs")
             val send = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
-                putExtra(Intent.EXTRA_SUBJECT, "Speaker logs")
+                putExtra(Intent.EXTRA_SUBJECT, "VoxType logs")
                 putExtra(Intent.EXTRA_TEXT, RemoteLog.recentText())
             }
             startActivity(Intent.createChooser(send, "Share logs"))
@@ -770,7 +770,7 @@ class MainActivity : Activity(), DictationEngine.Listener {
         },
         SetupItem(ignoringBattery(), "Run in background", "Stops the phone closing the bubble", "Allow") {
             ui("Tap: setup battery optimization (ignoring=${ignoringBattery()})")
-            toast("Choose Speaker → “Don't optimize” / Unrestricted")
+            toast("Choose VoxType → “Don't optimize” / Unrestricted")
             runCatching { startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)) }
                 .onFailure { startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))) }
         },
@@ -782,23 +782,23 @@ class MainActivity : Activity(), DictationEngine.Listener {
      */
     private fun showAccessibilityDisclosure() {
         android.app.AlertDialog.Builder(this)
-            .setTitle("Allow Speaker to type for you?")
+            .setTitle("Allow VoxType to type for you?")
             .setMessage(
-                "Speaker uses Android's Accessibility service to type the words you dictate into the text " +
+                "VoxType uses Android's Accessibility service to type the words you dictate into the text " +
                     "field you're using in any app, the way a keyboard does.\n\n" +
                     "• It only types when you start dictation.\n" +
                     "• It does not read, collect, store or share your screen content or anything you type.\n" +
                     "• No data from this service leaves your phone.\n\n" +
-                    "On the next screen, open “Speaker auto-type” and turn it on. You can turn it off any time " +
+                    "On the next screen, open “VoxType auto-type” and turn it on. You can turn it off any time " +
                     "in Settings → Accessibility."
             )
             .setPositiveButton("Agree & continue") { _, _ ->
                 ui("Accessibility disclosure: agreed; opening Accessibility settings")
                 runCatching { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
-                    .onFailure { toast("Open Settings → Accessibility → Speaker auto-type") }
+                    .onFailure { toast("Open Settings → Accessibility → VoxType auto-type") }
                 toast(
-                    if (BuildConfig.DEV_TOOLS) "Open “Speaker auto-type” and turn it on. Greyed out? App info → ⋮ → Allow restricted settings"
-                    else "Open “Speaker auto-type” and turn it on"
+                    if (BuildConfig.DEV_TOOLS) "Open “VoxType auto-type” and turn it on. Greyed out? App info → ⋮ → Allow restricted settings"
+                    else "Open “VoxType auto-type” and turn it on"
                 )
             }
             .setNegativeButton("Not now") { _, _ ->
@@ -871,7 +871,7 @@ class MainActivity : Activity(), DictationEngine.Listener {
         val builder = android.app.AlertDialog.Builder(this)
             .setTitle("Privacy & permissions")
             .setMessage(
-                "Speaker has no account, no servers and no analytics. The developer receives nothing.\n\n" +
+                "VoxType has no account, no servers and no analytics. The developer receives nothing.\n\n" +
                     "• Microphone: used only while you dictate. With the built-in engine, audio is processed by " +
                     "your phone's speech service (Android/Google). With an API engine, each phrase is sent " +
                     "straight from your phone to the provider you chose (OpenAI, Groq, Google Gemini, Deepgram " +

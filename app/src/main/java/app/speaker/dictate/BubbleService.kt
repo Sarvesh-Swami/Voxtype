@@ -32,7 +32,7 @@ import kotlin.math.hypot
  * "Dynamic Island"), the persistent notification with a Dictate action, and the dictation engine.
  *
  * Bubble: tap = start/stop dictation (AI rewrite on: stop and send the draft), drag = move,
- * long-press = quick menu (AI rewrite on/off, open Speaker).
+ * long-press = quick menu (AI rewrite on/off, open VoxType).
  */
 class BubbleService : Service(), DictationEngine.Listener {
 
@@ -89,7 +89,7 @@ class BubbleService : Service(), DictationEngine.Listener {
             // Without foreground status Android kills the service (and the app) a few seconds later,
             // and the mic would be blocked anyway. Stop cleanly and tell the user instead.
             android.util.Log.e("Speaker.bubble", "startForeground FAILED; stopping the bubble", e)
-            toast("Speaker couldn't start the bubble (${e.javaClass.simpleName}). Open Speaker and try again.")
+            toast("VoxType couldn't start the bubble (${e.javaClass.simpleName}). Open VoxType and try again.")
             failedToStart = true
             stopSelf()
             return
@@ -315,7 +315,7 @@ class BubbleService : Service(), DictationEngine.Listener {
         }
         s.setMetadata(
             android.media.MediaMetadata.Builder()
-                .putString(android.media.MediaMetadata.METADATA_KEY_TITLE, "Speaker")
+                .putString(android.media.MediaMetadata.METADATA_KEY_TITLE, "VoxType")
                 .putString(android.media.MediaMetadata.METADATA_KEY_ARTIST, subtitle)
                 .putBitmap(android.media.MediaMetadata.METADATA_KEY_ART, artwork())
                 .build()
@@ -733,7 +733,7 @@ class BubbleService : Service(), DictationEngine.Listener {
         showPopup(listOf(
             (if (aiOn) "✨ Turn AI rewrite off" else "✨ Turn AI rewrite on") to { setAiRewrite(!aiOn) },
             "📝 Prompt: ${Prompts.activeName(prefs)}" to { showPromptMenu() },
-            "⚙ Open Speaker" to { openApp() },
+            "⚙ Open VoxType" to { openApp() },
         ))
     }
 
@@ -745,7 +745,7 @@ class BubbleService : Service(), DictationEngine.Listener {
             val mark = if (item.name == active) "✓  " else "     "
             val star = if (item.builtIn) "" else "★ "
             "$mark$star${item.name}" to { choosePrompt(item) }
-        } + ("✏ Add or edit prompts in Speaker" to { openApp() })
+        } + ("✏ Add or edit prompts in VoxType" to { openApp() })
         showPopup(items, header = "Prompt for AI rewrite", timeoutMs = 10_000)
     }
 
@@ -820,7 +820,7 @@ class BubbleService : Service(), DictationEngine.Listener {
             val llm = LlmProvider.from(prefs.llmProvider)
             if (prefs.apiKey(llm.vendor).isBlank() || prefs.llmModel(llm).isBlank()) {
                 log("Quick menu: AI rewrite can't be turned on yet (no key or model for ${llm.id})")
-                toast("Set up AI rewrite in Speaker first: provider, API key and model")
+                toast("Set up AI rewrite in VoxType first: provider, API key and model")
                 openApp()
                 return
             }
@@ -857,7 +857,7 @@ class BubbleService : Service(), DictationEngine.Listener {
     private fun addBubble() {
         val w = dp(BUBBLE_W_DP); val h = dp(BUBBLE_H_DP)
         // The boy on a transparent background (no circle behind him), standing at the screen edge.
-        val view = BoyView(this).apply { contentDescription = "Speaker dictation" }
+        val view = BoyView(this).apply { contentDescription = "VoxType dictation" }
         val lp = WindowManager.LayoutParams(
             w, h,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
@@ -1021,7 +1021,7 @@ class BubbleService : Service(), DictationEngine.Listener {
     private fun log(msg: String) = android.util.Log.i("Speaker.bubble", msg)
 
     private fun openApp() {
-        log("Opening Speaker")
+        log("Opening VoxType")
         startActivity(Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
@@ -1051,7 +1051,7 @@ class BubbleService : Service(), DictationEngine.Listener {
         }
         val builder = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_mic)
-            .setContentTitle("Speaker")
+            .setContentTitle("VoxType")
             .setContentText(when {
                 processing -> "✨ Processing with AI… the text is typed when it's ready"
                 draftSession && currentState == DictationEngine.State.RECORDING ->

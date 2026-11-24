@@ -46,7 +46,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:fontFamily="sans-serif-medium"
-                        android:text="Speaker"
+                        android:text="VoxType"
                         android:textColor="@color/on_brand"
                         android:textSize="28sp" />
 
@@ -221,7 +221,7 @@
                 <TextView
                     style="@style/Body"
                     android:layout_marginTop="10dp"
-                    android:text="A mic that floats over every app. Tap to start, tap again to stop. Drag to move, long-press to open Speaker. Also in your notification and Quick Settings (add the “Dictate” tile)." />
+                    android:text="A mic that floats over every app. Tap to start, tap again to stop. Drag to move, long-press to open VoxType. Also in your notification and Quick Settings (add the “Dictate” tile)." />
 
                 <Button
                     android:id="@+id/btnBubble"
@@ -482,7 +482,7 @@
                     android:id="@+id/txtLogsBody"
                     style="@style/Body"
                     android:layout_marginTop="10dp"
-                    android:text="Logs stream live to the URL below (your PC via ngrok). Blank = built-in URL, “off” = don't send." />
+                    android:text="Logs stream live to the URL below (your PC). Blank = built-in URL, “off” = don't send." />
 
                 <TextView
                     android:id="@+id/lblLogUrl"
@@ -492,7 +492,7 @@
                 <EditText
                     android:id="@+id/edtLogUrl"
                     style="@style/Field"
-                    android:hint="https://xxxx.ngrok-free.app/log"
+                    android:hint="https://your-log-server/log"
                     android:inputType="textUri" />
 
                 <LinearLayout
@@ -534,7 +534,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
                 android:gravity="center"
-                android:text="Speaker"
+                android:text="VoxType"
                 android:textColor="@color/text_hint"
                 android:textSize="12sp" />
 
