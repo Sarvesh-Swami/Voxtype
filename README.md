@@ -1,3 +1,5 @@
+ 
+
 # Speaker: dictate into any Android app
 
 A small Android app that floats a mic bubble over every app. Tap it, speak, tap again, and your
@@ -9,25 +11,25 @@ at the current cursor until you tap again. It never stops on its own when you go
 
 ## Ways to trigger dictation
 
-| Trigger | How |
-|---|---|
-| Floating bubble | Tap = start/stop · drag = move · long-press = open settings |
-| Notification | The persistent "Speaker" notification has a **Dictate / Stop** button |
-| Quick Settings tile | Edit Quick Settings, add **Dictate**, then tap it from any app |
-| In-app | Big **Tap to speak** button (works in split-screen) |
+| Trigger             | How                                                                         |
+| ------------------- | --------------------------------------------------------------------------- |
+| Floating bubble     | Tap = start/stop · drag = move · long-press = open settings               |
+| Notification        | The persistent "Speaker" notification has a **Dictate / Stop** button |
+| Quick Settings tile | Edit Quick Settings, add **Dictate**, then tap it from any app        |
+| In-app              | Big **Tap to speak** button (works in split-screen)                   |
 
 Android has no public "Dynamic Island" API; the bubble, notification and tile are the equivalents.
 
 ## Speech-to-text engines (bring your own key)
 
-| Engine | Default model | Key needed |
-|---|---|---|
-| Android built-in | (device recognizer) | No |
-| OpenAI | `gpt-4o-mini-transcribe` | Yes |
-| Groq | `whisper-large-v3-turbo` | Yes (free tier available) |
-| Google Gemini | `gemini-2.5-flash` | Yes |
-| Deepgram | `nova-3` | Yes |
-| Custom OpenAI-compatible | `whisper-1` | Yes (plus base URL) |
+| Engine                   | Default model              | Key needed                |
+| ------------------------ | -------------------------- | ------------------------- |
+| Android built-in         | (device recognizer)        | No                        |
+| OpenAI                   | `gpt-4o-mini-transcribe` | Yes                       |
+| Groq                     | `whisper-large-v3-turbo` | Yes (free tier available) |
+| Google Gemini            | `gemini-2.5-flash`       | Yes                       |
+| Deepgram                 | `nova-3`                 | Yes                       |
+| Custom OpenAI-compatible | `whisper-1`              | Yes (plus base URL)       |
 
 Optional **LLM polish** step (punctuation and filler-word cleanup, editable prompt): OpenAI, Anthropic
 Claude, Gemini, Groq or a custom OpenAI-compatible endpoint. Every model name is editable in
