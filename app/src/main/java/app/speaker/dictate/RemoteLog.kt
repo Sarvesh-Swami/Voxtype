@@ -32,8 +32,8 @@ fun spoken(text: CharSequence): String =
 /**
  * Keeps a local ring of this app's own logcat for the user-initiated "Copy / Share logs" buttons.
  *
- * Dev flavor only: also streams it to the "log URL" (the PC via ngrok). The Play flavor never
- * sends anything anywhere (BuildConfig.DEV_TOOLS is a compile-time constant, so R8 strips the
+ * Debug builds with dev-local/ only (DEV_TOOLS): also streams it to the "log URL" (the PC via ngrok).
+ * Release (Play) builds never send anything anywhere (BuildConfig.DEV_TOOLS is a compile-time constant, so R8 strips the
  * network code). Crashes are saved to a file and shown/sent on the next start.
  *
  * Never log API keys. Http.kt logs URLs, status codes and error bodies only.

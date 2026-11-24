@@ -1,7 +1,7 @@
 # Speaker: Google Play release checklist
 
-Build to upload: `dist/play/Speaker-<version>-play.aab` (from `gradlew bundlePlayRelease`).
-Also upload `dist/play/Speaker-<version>-mapping.txt` (Play Console → App bundle explorer → deobfuscation file).
+Build to upload: `app/build/outputs/bundle/release/app-release.aab` (from `gradlew bundleRelease` on the Main branch).
+Also upload `app/build/outputs/mapping/release/mapping.txt` (Play Console → App bundle explorer → deobfuscation file).
 
 ## 1. One-time account and app setup
 - [ ] Turn on **Play App Signing** (default). Upload key: `keystore/speaker-upload.jks`; its password is in
@@ -44,11 +44,13 @@ counts transmitting data off the device as "collection", so declare it to be saf
       providers need the user's own API key.
 
 ## 5. Before every upload
-- [ ] Bump `versionCode` (and `versionName`) in `app/build.gradle.kts`.
-- [ ] `gradlew bundlePlayRelease lintPlayRelease` with 0 lint errors.
-- [ ] Verify the Play build has no dev code: `aapt2 dump badging` shows no `REQUEST_INSTALL_PACKAGES`, and the
-      dex contains no `ngrok` / `PackageInstaller` strings.
-- [ ] Test the same commit's dev build on a phone: bubble, tile, notification, island, built-in engine, one API
+- [ ] Bump `versionCode` (and `versionName`) in `app/build.gradle.kts`. It must be higher than any
+      `devVersionCode` used for phone tests (in the private `dev-local/dev.properties`).
+- [ ] `gradlew bundleRelease lintRelease` with 0 lint errors.
+- [ ] Verify the release has no dev code: `aapt2 dump badging` on `app-release.apk` shows no
+      `REQUEST_INSTALL_PACKAGES`, the dex contains no `ngrok` / `PackageInstaller` / `UpdateReceiver` strings, and it's
+      signed with the upload key. Once in a while, also build with `dev-local/` renamed to prove the repo builds without it.
+- [ ] Test the same code as a debug build on a phone: bubble, tile, notification, island, built-in engine, one API
       engine, AI rewrite, Termux, WhatsApp.
 
 ## 6. Known review risks (not hard blockers)

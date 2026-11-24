@@ -5,11 +5,15 @@ app/build/
 local.properties
 *.iml
 .idea/
+
+# Private dev tools (sideload updater, live-log server, ngrok URL, dev notes). Debug builds use them when
+# present; release builds never do. Never commit this folder. Back it up.
+dev-local/
+
+# Build outputs (dev APKs, Play bundles, R8 mapping): never versioned
+dist/
 *.apk
-!dist/*.apk
+*.aab
 
-# Signing key: keep out of git, but BACK IT UP (needed to update the installed app)
+# Signing keys (debug key + Play upload key and passwords): keep out of git, but BACK THEM UP
 keystore/
-
-# Play release artifacts (.aab + R8 mapping): uploaded to Play Console by hand, not versioned
-dist/play/

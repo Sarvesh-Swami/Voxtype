@@ -5,18 +5,30 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-// TWO FLAVORS
-//  play: what goes to Google Play. No server of ours, no self-update, no remote logging.
-//        Build:  gradlew bundlePlayRelease   ->  app/build/outputs/bundle/playRelease/app-play-release.aab
-//  dev:  sideloaded test build. Streams logs to your PC (ngrok) and has the in-app Update button.
-//        Build:  gradlew assembleDevDebug    ->  app/build/outputs/apk/dev/debug/app-dev-debug.apk
+// ONE CODEBASE, TWO BUILDS
+//  release: what goes to Google Play. No server of ours, no self-update, no remote logging.
+//           Build:  gradlew bundleRelease  ->  app/build/outputs/bundle/release/app-release.aab
+//  debug:   the phone test build.        Build:  gradlew assembleDebug  ->  app/build/outputs/apk/debug/app-debug.apk
+//
+// PRIVATE DEV TOOLS (optional, git-ignored): dev-local/ at the repo root.
+//  If dev-local/android/ exists, DEBUG builds add its code and manifest (the sideload Update button +
+//  REQUEST_INSTALL_PACKAGES) and turn on BuildConfig.DEV_TOOLS (live logs to the PC). Settings come from
+//  dev-local/dev.properties (speakerLogUrl, devVersionCode).
+//  Without dev-local/ (fresh clone, CI), debug builds are plain and still compile: src/nodev has a no-op Updater.
+//  RELEASE builds never use dev-local/, whether it exists or not.
 //
 // SIGNING
-//  dev   : keystore/speaker-debug.keystore (the key the sideloaded app was first signed with, so it
-//          updates in place). Keep it backed up.
-//  play  : keystore/speaker-upload.jks + keystore/upload.properties (Play "upload key"; Google re-signs
-//          with the app-signing key it holds). Keep both backed up, outside git.
+//  debug  : keystore/speaker-debug.keystore if present (the key the sideloaded app was first signed with,
+//           so it updates in place), else the standard Android debug key.
+//  release: keystore/speaker-upload.jks + keystore/upload.properties (Play "upload key"; Google re-signs
+//           with the app-signing key it holds). keystore/ is git-ignored: back it up.
 // Never change applicationId, and always raise versionCode.
+val devLocal = rootProject.file("dev-local")
+val devAndroid = File(devLocal, "android")
+val devTools = devAndroid.isDirectory
+val devProps = Properties().apply {
+    File(devLocal, "dev.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+}
 val devKeystore = rootProject.file("keystore/speaker-debug.keystore")
 val uploadProps = Properties().apply {
     rootProject.file("keystore/upload.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
@@ -30,8 +42,8 @@ android {
         applicationId = "app.speaker.dictate"
         minSdk = 26
         targetSdk = 36 // Google Play: new apps and updates must target Android 16 (API 36)
-        versionCode = 28
-        versionName = "1.0.0"
+        versionCode = 29
+        versionName = "1.1.0"
     }
 
     buildFeatures { buildConfig = true }
@@ -55,33 +67,34 @@ android {
         }
     }
 
-    flavorDimensions += "dist"
-    productFlavors {
-        create("play") {
-            dimension = "dist"
-            buildConfigField("boolean", "DEV_TOOLS", "false")
-            buildConfigField("String", "DEFAULT_LOG_URL", "\"\"")
-        }
-        create("dev") {
-            dimension = "dist"
-            versionNameSuffix = "-dev"
-            buildConfigField("boolean", "DEV_TOOLS", "true")
-            // Live-log URL built into the dev app (set speakerLogUrl in gradle.properties).
-            val logUrl = (project.findProperty("speakerLogUrl") as String?).orEmpty().trim()
-            buildConfigField("String", "DEFAULT_LOG_URL", "\"$logUrl\"")
-        }
-    }
-
     buildTypes {
         debug {
             signingConfig = signingConfigs.findByName("dev") ?: signingConfigs.getByName("debug")
+            if (devTools) versionNameSuffix = "-dev"
+            buildConfigField("boolean", "DEV_TOOLS", devTools.toString())
+            val logUrl = if (devTools) devProps.getProperty("speakerLogUrl").orEmpty().trim() else ""
+            buildConfigField("String", "DEFAULT_LOG_URL", "\"$logUrl\"")
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            signingConfig = signingConfigs.findByName("upload") ?: signingConfigs.findByName("dev")
+            signingConfig = signingConfigs.findByName("upload") // never the debug key
+            buildConfigField("boolean", "DEV_TOOLS", "false")
+            buildConfigField("String", "DEFAULT_LOG_URL", "\"\"")
         }
+    }
+
+    sourceSets {
+        getByName("debug") {
+            if (devTools) {
+                java.srcDir(File(devAndroid, "java"))
+                File(devAndroid, "AndroidManifest.xml").takeIf { it.exists() }?.let { manifest.srcFile(it) }
+            } else {
+                java.srcDir("src/nodev/java")
+            }
+        }
+        getByName("release") { java.srcDir("src/nodev/java") }
     }
 
     compileOptions {
@@ -89,6 +102,15 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
+}
+
+// Debug builds may use their own versionCode from dev-local/dev.properties, so phone tests don't need
+// a change to this shared file. It must keep going up.
+val devVersionCode = devProps.getProperty("devVersionCode")?.trim()?.toIntOrNull()
+androidComponents {
+    onVariants(selector().withBuildType("debug")) { variant ->
+        if (devTools && devVersionCode != null) variant.outputs.forEach { it.versionCode.set(devVersionCode) }
+    }
 }
 
 // No third-party dependencies: plain Android framework + Kotlin stdlib.

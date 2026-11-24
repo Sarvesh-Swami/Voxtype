@@ -139,7 +139,7 @@ class MainActivity : Activity(), DictationEngine.Listener {
         applyFlavor()
     }
 
-    /** Play builds have no server: hide the sideload Update button and the remote-log URL. */
+    /** Without dev tools (all release builds): hide the sideload Update button and the remote-log URL. */
     private fun applyFlavor() {
         if (BuildConfig.DEV_TOOLS) return
         btnUpdate.visibility = View.GONE

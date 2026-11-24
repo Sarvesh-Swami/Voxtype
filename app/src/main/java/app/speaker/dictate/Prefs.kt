@@ -122,8 +122,8 @@ class Prefs(context: Context) {
         set(v) = sp.edit().putBoolean("auto_insert", v).apply()
 
     /**
-     * Where RemoteLog sends logs. Blank = the URL built into the app (gradle.properties
-     * speakerLogUrl). Typing "off" disables sending.
+     * Where RemoteLog sends logs. Blank = the URL built into the debug app
+     * (speakerLogUrl in the git-ignored dev-local/dev.properties; always blank in release builds). Typing "off" disables sending.
      */
     var logUrl: String
         get() {

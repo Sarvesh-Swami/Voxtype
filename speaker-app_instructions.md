@@ -3,30 +3,39 @@
 Android dictation app ("Speaker", package `app.speaker.dictate`). User-facing overview: `README.md`.
 Play Store release steps and policy notes: `docs/play-store-release-checklist.md`.
 The public website is a separate repo: `D:\Projects\speaker-website` (GitHub Pages on a Namecheap subdomain; see its
-`README.md` and `speaker-website_instructions.md`). It offers the **play** flavor APK (upload-key signed). On each public
-release, copy the Play APK there and update its version, size, date and SHA-256. Keep its `src/privacy-policy.html`
-the same as `docs/privacy-policy.html` here.
+`README.md` and `speaker-website_instructions.md`). Keep its `src/privacy-policy.html` the same as
+`docs/privacy-policy.html` here.
 
-## Branches
-- **dev** (this branch): day-to-day work and device testing. Has the ngrok log server, the in-app Update
-  button, the sideload signing key setup and both build flavors below.
-- **Main**: the Google Play version only. It has no flavors, no `tools/`, no `dist/`, no updater and no remote
-  logging; its README and docs are written for end users. Bring finished work over by merging `dev` into
-  `Main`. Git remembers the cleanup commit, so only new dev-only changes need resolving. When files conflict,
-  keep Main's versions of `README.md`, this file, `app/build.gradle.kts`, `gradle.properties`, `.gitignore`
-  and `RemoteLog.kt`. Rebuild with `gradlew bundleRelease` and check the release has no `ngrok`/`PackageInstaller`.
-- Commit locally only; the user pushes from their own account.
+## One codebase, private dev tools kept local
+- **`dev` and `Main` hold the same code.** Everything committed is the Play-safe app. Work on `dev`, then bring
+  `Main` up to it (fast-forward: `git fetch . dev:Main`). There are no dev-only files in git any more, so merges
+  between them can't conflict. Commit locally only; the user pushes from their own account.
+- **Private dev tools live in `dev-local/`** at the repo root. It's git-ignored (never commit or `git add -f` it)
+  and exists only on the user's laptop, so it must be backed up outside git:
+  - `dev-local/android/AndroidManifest.xml` + `android/java/.../Updater.kt`: the sideload Update button
+    (`REQUEST_INSTALL_PACKAGES`, `UpdateReceiver`, `PackageReplacedReceiver`, PackageInstaller).
+  - `dev-local/dev.properties`: `speakerLogUrl` (ngrok log URL) and `devVersionCode` (debug versionCode).
+  - `dev-local/tools/log-server.mjs` (+ `ngrok-log-policy.yml`): log receiver and update server.
+  - `dev-local/speaker-dev-workflow-README.md`: the user's dev notes. `dev-local/build-apk.ps1`: old helper.
+- **How the build uses it (`app/build.gradle.kts`):**
+  - **debug** + `dev-local/android/` present: adds that code and manifest, `BuildConfig.DEV_TOOLS = true`, log URL
+    and `devVersionCode` from `dev.properties`, versionName suffix `-dev`.
+  - **debug** without `dev-local/` (fresh clone, CI): plain build using the no-op `app/src/nodev/.../Updater.kt`.
+  - **release**: always `src/nodev`, `DEV_TOOLS = false`, blank log URL, upload key only. Never touches `dev-local/`.
+- Shared code may only reach dev tools through APIs that also exist in `src/nodev` (same `Updater` API), or
+  behind `BuildConfig.DEV_TOOLS` (a compile-time constant, so R8 strips the dead branch from release builds).
+  Anything Play forbids (self-update, install permission) belongs in `dev-local/android/`, never in `src/main`.
+- Before a Play upload, check the release: no `REQUEST_INSTALL_PACKAGES` in `aapt2 dump badging`, no
+  `ngrok`/`PackageInstaller`/`UpdateReceiver` in the dex, signed with the upload key. Now and then, rename
+  `dev-local` and build `assembleDebug bundleRelease` to prove the repo builds without it.
 
-## Two flavors (app/build.gradle.kts)
-- **play**: the Google Play build. No server of ours, no self-update, no remote logging, no
-  REQUEST_INSTALL_PACKAGES. `BuildConfig.DEV_TOOLS = false`. Build: `gradlew bundlePlayRelease`
-  → `app/build/outputs/bundle/playRelease/app-play-release.aab` (copy to `dist/play/`, with `mapping.txt`).
-  Signed with the upload key `keystore/speaker-upload.jks` + `keystore/upload.properties` (git-ignored; back up).
-- **dev**: sideloaded test build for the user's phone. `DEV_TOOLS = true`: ngrok log streaming, in-app Update
-  button, `REQUEST_INSTALL_PACKAGES` + update receivers (`src/dev/AndroidManifest.xml`, `src/dev/.../Updater.kt`).
-  `src/play/.../Updater.kt` is a no-op stub with the same API. Build: `gradlew assembleDevDebug`.
-- Never put dev-only behavior in `main` without a `BuildConfig.DEV_TOOLS` guard (it's a compile-time constant,
-  so R8 strips the dead branch from the Play build). After a Play build, check the dex has no `ngrok`/`PackageInstaller`.
+## Builds
+- **Phone test build:** `gradlew assembleDebug` → `app/build/outputs/apk/debug/app-debug.apk`.
+- **Play:** `gradlew bundleRelease lintRelease` → `app/build/outputs/bundle/release/app-release.aab` (upload it plus
+  `app/build/outputs/mapping/release/mapping.txt`). Signed with the upload key `keystore/speaker-upload.jks` +
+  `keystore/upload.properties` (git-ignored; back up). Without them, the release is unsigned (never the debug key).
+- Shared `versionCode`/`versionName` in `app/build.gradle.kts` are for Play releases; each upload must be higher than
+  every `devVersionCode` used before.
 
 ## Environment constraints
 - The dev laptop is Intune-managed: **no admin rights**, so nothing can be installed system-wide.
@@ -34,27 +43,28 @@ the same as `docs/privacy-policy.html` here.
   platforms 35+36 and build-tools 36.0.0, Gradle 8.9). Set `JAVA_HOME` to the `jdk-17*` folder there before
   running `gradlew`. `local.properties` (git-ignored) points `sdk.dir` at `devtools\android-sdk`.
 - No Android Studio and no emulator (no rights to enable Windows Hypervisor Platform). Test on a real
-  phone via the sideloaded dev APK.
+  phone via the sideloaded debug APK.
 
 ## Updating the installed dev app (user requirement: never uninstall)
-- The user updates in place. Every dev build must keep `applicationId = app.speaker.dictate`, be signed with
-  `keystore/speaker-debug.keystore` (SHA-256 207e7e1f…1729), and **bump versionCode** for each APK handed over.
-  Don't rename the service classes (an enabled accessibility service is tracked by class name).
-- Ship: bump versionCode/versionName, `gradlew assembleDevDebug`, copy
-  `app/build/outputs/apk/dev/debug/app-dev-debug.apk` to `dist/Speaker-<versionName>-debug.apk`.
-  `tools/log-server.mjs` reads the version from `app/build.gradle.kts` and serves `/update/latest.json` + `/update/apk`;
-  the user taps **Update** in the app.
+- The user updates in place. Every debug build must keep `applicationId = app.speaker.dictate`, be signed with
+  `keystore/speaker-debug.keystore` (SHA-256 207e7e1f…1729), and **raise `devVersionCode`** in
+  `dev-local/dev.properties` for each APK handed over. Don't rename the service classes (an enabled
+  accessibility service is tracked by class name).
+- Ship: raise `devVersionCode`, `gradlew assembleDebug`, copy `app/build/outputs/apk/debug/app-debug.apk` to
+  `dist/Speaker-<versionName>-debug.apk` (`dist/` is git-ignored). `dev-local/tools/log-server.mjs` reads
+  `devVersionCode` (else the shared versionCode) and serves `/update/latest.json` + `/update/apk`; the user taps
+  **Update** in the app.
 - A Play-installed copy is signed by Google's key, so it can't replace the sideloaded dev app (or vice versa)
   without an uninstall. Both share the applicationId.
 
-## Device logs (dev flavor only)
+## Device logs (debug builds with dev-local only)
 - The user **cannot run script files** on this laptop (Intune). Don't hand them .ps1/.bat workflows; give
   single commands or in-app features instead.
-- The user's ngrok free domain is `emmie-unremounted-notedly.ngrok-free.dev` (dev `speakerLogUrl`). The user
-  runs `node tools\log-server.mjs` and `ngrok http 8787` in two terminals; read `.ai-workspace/logs/device.log`.
+- The user runs `node dev-local\tools\log-server.mjs` and `ngrok http 8787` in two terminals; read
+  `.ai-workspace/logs/device.log`. The ngrok URL lives only in `dev-local/dev.properties`.
 - Only a 2xx from the log server counts as delivered; anything else (ngrok offline 404, 502/503) is retried, so
   logs from an outage arrive later. Never log API keys or auth headers.
-- Dictated words go through `spoken(text)` in logs: full text in dev, length only in Play builds.
+- Dictated words go through `spoken(text)` in logs: full text with DEV_TOOLS, length only in release builds.
 
 ## Architecture (app/src/main/java/app/speaker/dictate)
 - `DictationEngine`: continuous sessions (tap to start, tap to stop). API providers: `SegmentingRecorder` cuts
