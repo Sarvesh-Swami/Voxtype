@@ -1,6 +1,6 @@
 <resources>
     <string name="a11y_description">Speaker uses this to type the words you dictate into the text field you are using, the way a keyboard does. It only acts when you start dictation. Speaker does not read, collect, store or share what is on your screen.</string>
     <string name="a11y_summary">Types your dictation into the focused text field</string>
-    <!-- Where you host docs/privacy-policy.html (e.g. GitHub Pages). Same URL goes in Play Console. -->
-    <string name="privacy_policy_url" translatable="false"></string>
+    <!-- The hosted docs/privacy-policy.html (website repo, GitHub Pages). Same URL goes in Play Console. -->
+    <string name="privacy_policy_url" translatable="false">https://voxtype.sarveshh.me/privacy.html</string>
 </resources>

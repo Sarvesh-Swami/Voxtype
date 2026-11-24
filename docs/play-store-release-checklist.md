@@ -8,9 +8,10 @@ Also upload `app/build/outputs/mapping/release/mapping.txt` (Play Console → Ap
       `keystore/upload.properties`. Back up both somewhere safe outside the repo.
 - [ ] New **personal** developer accounts must run a **closed test with at least 12 testers for 14 days**
       before production access. Plan for that.
-- [ ] Host `docs/privacy-policy.html` (e.g. GitHub Pages). Fill in the `[DATE]`, `[DEVELOPER NAME]` and
-      `[CONTACT EMAIL]` placeholders. Put the URL in Play Console **and** in
-      `app/src/main/res/values/strings.xml` → `privacy_policy_url` (enables the "Full policy" button).
+- [x] Privacy policy hosted at https://voxtype.sarveshh.me/privacy.html (website repo, same text as
+      `docs/privacy-policy.html`; developer Sarvesh Swami, contact.sarvesh.swami@gmail.com, effective 24 November 2026)
+      and set in `app/src/main/res/values/strings.xml` → `privacy_policy_url` (enables the "Full policy" button).
+- [ ] Put the same URL in Play Console → App content → Privacy policy.
 
 ## 2. Play Console declarations (App content)
 | Item | Answer |
